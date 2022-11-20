@@ -1,0 +1,15 @@
+[package]
+name = "ubs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# TODO: Using serde?
+serde = { version = "1.0.147", features = ["derive"] }
+quick-xml = { version = "0.26.0", features = ["serde"] }
+tl = { version = "0.7.7", features = ["simd"] }
+hyper = { version = "0.14.23", features = ["client", "http1"] }
+hyper-rustls = "0.23.1"
+cookie = "0.16.1"
+chrono = "0.4.23"
+thiserror = "1.0.37"
