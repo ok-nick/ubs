@@ -1,13 +1,3 @@
-// XML PARSING:
-// Find <PAGE>
-// Find <FIELD> with id `divPAGECONTAINER_TGT`
-// Use CDATA event to parse value
-//
-// Use `serde` for now. If I want to make it more performant, I can use streams
-//
-// HTML PARSING:
-// Search for Id `win80divDAYS_TIMES$0` whilst incrementing 0
-
 use chrono::NaiveDateTime;
 
 mod parser;
@@ -24,6 +14,7 @@ pub struct ClassGroup {
 pub struct Class {
     r#type: ClassType,
     class_id: u32,
+    session: String,
     section: String,
     start_date: NaiveDateTime,
     end_date: NaiveDateTime,
