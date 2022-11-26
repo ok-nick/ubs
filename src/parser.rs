@@ -1,10 +1,41 @@
-use std::str;
+use std::{borrow::Cow, str, sync::Arc};
 
+use chrono::NaiveDateTime;
 use quick_xml::{events::Event, Reader};
 use thiserror::Error;
-use tl::{Node, ParserOptions};
+use tl::{ParserOptions, VDom};
 
-use crate::ClassGroup;
+const CLASSES_PER_PAGE: u32 = 50;
+const CLASSES_PER_GROUP: u32 = 3;
+
+// Rust does macro expansion before resolving consts, therefore I cannot embed `{}` directly
+// into the consts and use the `format!` macro.
+
+// First is the class group index ((page * 50) - 1)
+const SESSION_TAG_PARTS: [&str; 1] = ["SSR_DER_CS_GRP_SESSION_CODE$215$$"];
+// First is class index in group (1-3)
+// Second is (294, 295, 296) depending on class index in group (1-3)
+// Third is the class group index ((page * 50) - 1)
+const CLASS_ID_TAG_PARTS: [&str; 3] = ["SSR_CLSRCH_F_WK_SSR_CMPNT_DESCR_", "$", "$$"];
+const CLASS_ID_TAG_SERIES: [u32; 3] = [294, 295, 296];
+// First is the class group index ((page * 50) - 1)
+const DATES_TAG_PARTS: [&str; 1] = ["SSR_CLSRCH_F_WK_SSR_MTG_DT_LONG_1$88$"];
+// First is class index in group (1-3)
+// Second is (134, 135, 154) depending on class index in group (1-3)
+// Third is the class group index ((page * 50) - 1)
+const DATETIME_TAG_PARTS: [&str; 3] = ["SSR_CLSRCH_F_WK_SSR_MTG_SCHED_L_", "$", "$$"];
+const DATETIME_TAG_SERIES: [u32; 3] = [134, 135, 154];
+// First is class index in group (1-3)
+// Second is the class group index ((page * 50) - 1)
+const ROOM_TAG_PARTS: [&str; 2] = ["SSR_CLSRCH_F_WK_SSR_MTG_LOC_LONG_", "$"];
+// First is class index in group (1-3)
+// Second is (86, 161, 162) depending on class index in group (1-3)
+// Third is the class group index ((page * 50) - 1)
+const INSTRUCTOR_TAG_PARTS: [&str; 3] = ["SSR_CLSRCH_F_WK_SSR_INSTR_LONG_", "$", "$$"];
+const INSTRUCTOR_TAG_SERIES: [u32; 3] = [86, 161, 162];
+// First is class index in group (1-3)
+// Second is the class group index ((page * 50) - 1)
+const SEATS_TAG_PARTS: [&str; 2] = ["SSR_CLSRCH_F_WK_SSR_DESCR50_", "$"];
 
 #[derive(Debug, Clone)]
 pub struct ClassScheduleParser<'a> {
@@ -13,34 +44,6 @@ pub struct ClassScheduleParser<'a> {
 }
 
 impl<'a> ClassScheduleParser<'a> {
-    const CLASSES_PER_PAGE: u32 = 50;
-
-    // First is the class group index ((page * 50) - 1)
-    const SESSION_TAG: &str = "SSR_DER_CS_GRP_SESSION_CODE$215$${}";
-    // First is class index in group (1-3)
-    // Second is (294, 295, 296) depending on class index in group (1-3)
-    // Third is the class group index ((page * 50) - 1)
-    const CLASS_ID_TAG: &str = "SSR_CLSRCH_F_WK_SSR_CMPNT_DESCR_{}${}$${}";
-    const CLASS_ID_TAG_PARTS: [u32; 3] = [294, 295, 296];
-    // First is the class group index ((page * 50) - 1)
-    const DATES_TAG: &str = "SSR_CLSRCH_F_WK_SSR_MTG_DT_LONG_1$88${}";
-    // First is class index in group (1-3)
-    // Second is (134, 135, 154) depending on class index in group (1-3)
-    // Third is the class group index ((page * 50) - 1)
-    const DAY_TIMES_TAG: &str = "SSR_CLSRCH_F_WK_SSR_MTG_SCHED_L_{}${}$${}";
-    const DAY_TIMES_TAG_PARTS: [u32; 3] = [134, 135, 154];
-    // First is class index in group (1-3)
-    // Second is the class group index ((page * 50) - 1)
-    const ROOM_TAG: &str = "SSR_CLSRCH_F_WK_SSR_MTG_LOC_LONG_{}${}";
-    // First is class index in group (1-3)
-    // Second is (86, 161, 162) depending on class index in group (1-3)
-    // Third is the class group index ((page * 50) - 1)
-    const INSTRUCTOR_TAG: &str = "SSR_CLSRCH_F_WK_SSR_INSTR_LONG_{}${}$${}";
-    const INSTRUCTOR_TAG_PARTS: [u32; 3] = [86, 161, 162];
-    // First is class index in group (1-3)
-    // Second is the class group index ((page * 50) - 1)
-    const SEATS_TAG: &str = "SSR_CLSRCH_F_WK_SSR_DESCR50_{}${}";
-
     // TODO: see if I can extract the page from the data
     // Page starts from 0
     pub fn new(bytes: &'a [u8], page: u32) -> Self {
@@ -78,42 +81,220 @@ impl<'a> ClassScheduleParser<'a> {
         Err(ParseError::FieldMissing)
     }
 
-    // Search for win80divDAYS_TIMES$0 and increment 0
     // Search for TERM_VAL_TBL_DESCR to get "Spring 2023"
-    fn parse_html(&self, bytes: &[u8]) -> Result<(), ParseError> {
-        let string = str::from_utf8(bytes)?;
-        // TODO: consider enabling HTML tracking
-        let dom = tl::parse(string, ParserOptions::default())?;
-
-        let first_handle = dom.children().get(0).ok_or(ParseError::EmptyHtml)?;
-        // handle will always exist since we pull it straight from the DOM
-        let first_node = first_handle.get(dom.parser()).unwrap();
-        let id = match first_node {
-            Node::Tag(tag) => {
-                let bytes = tag.attributes().id().ok_or(ParseError::UnknownFormat)?;
-                let full_id = str::from_utf8(bytes.as_bytes())?;
-                id_from_full_id(full_id)
-            }
-            _ => Err(ParseError::UnknownFormat),
-        };
+    // TODO: I can return an iterator over each class group rather than collecting
+    fn parse_html(&self) -> Result<Vec<ClassGroup<'a>>, ParseError> {
+        let string = str::from_utf8(self.bytes)?;
+        // TODO: consider enabling tracking for perf and the Arc isn't too pretty
+        let dom = Arc::new(tl::parse(string, ParserOptions::default())?);
 
         // Every page contains the bytes of the previous pages
-        let last_class_index = (self.page * Self::CLASSES_PER_PAGE) - 1;
-        for i in 0..last_class_index {
-            let element = dom.get_element_by_id(&*format!(Self::SESSION_TAG, i));
-        }
-        todo!()
+        let first_class_index = self.page.saturating_sub(1) * CLASSES_PER_PAGE;
+        let last_class_index = (self.page * CLASSES_PER_PAGE) - 1;
+        Ok((first_class_index..last_class_index)
+            .map(|group_num| ClassGroup {
+                classes: (0..CLASSES_PER_GROUP)
+                    .map(|class_num| Class {
+                        dom: dom.clone(),
+                        class_num,
+                        group_num,
+                    })
+                    .collect(),
+                dom: dom.clone(),
+                group_num,
+            })
+            .collect())
     }
 }
 
-fn id_from_full_id(string: &str) -> Result<u32, ParseError> {
-    let start = string.find("win").ok_or(ParseError::UnknownFormat)?;
-    let end = string
-        .find("divPSPAGECONTAINER")
-        .ok_or(ParseError::UnknownFormat)?;
-    u32::from_str_radix(&string[start..end], 10).or(Err(ParseError::UnknownFormat))
+// TODO: Every lecture is paired with every possible combo of recs/labs, I can simplify this
+#[derive(Debug, Clone)]
+pub struct ClassGroup<'a> {
+    dom: Arc<VDom<'a>>,
+    classes: Vec<Class<'a>>,
+    group_num: u32,
 }
 
+impl<'a> ClassGroup<'a> {
+    pub fn classes(&self) -> &[Class<'a>] {
+        &self.classes
+    }
+
+    // TODO: get `win6divUB_SR_FL_WRK_HTMLAREA1$5` and retrieve sub-node
+    pub fn is_open(&self) -> Result<bool, ParseError> {
+        todo!()
+    }
+
+    pub fn session(&self) -> Result<String, ParseError> {
+        let session = get_text_from_id(
+            &self.dom,
+            &*format!("{}{}", SESSION_TAG_PARTS[0], self.group_num),
+        )?;
+        todo!()
+    }
+
+    pub fn start_date(&self) -> Result<NaiveDateTime, ParseError> {
+        todo!()
+    }
+
+    pub fn end_date(&self) -> Result<NaiveDateTime, ParseError> {
+        todo!()
+    }
+
+    pub fn dates(&self) -> Result<&str, ParseError> {
+        get_text_from_id(
+            &self.dom,
+            &*format!("{}{}", DATES_TAG_PARTS[0], self.group_num),
+        )
+    }
+}
+
+// TODO: empty text will equal `&nbsp;`
+#[derive(Debug, Clone)]
+pub struct Class<'a> {
+    dom: Arc<VDom<'a>>,
+    class_num: u32,
+    group_num: u32,
+}
+
+impl Class<'_> {
+    pub fn r#type(&self) -> Result<ClassType, ParseError> {
+        todo!()
+    }
+
+    pub fn class_id(&self) -> Result<u32, ParseError> {
+        todo!()
+    }
+
+    pub fn section(&self) -> Result<String, ParseError> {
+        todo!()
+    }
+
+    pub fn start_day(&self) -> Result<NaiveDateTime, ParseError> {
+        todo!()
+    }
+
+    pub fn end_day(&self) -> Result<NaiveDateTime, ParseError> {
+        todo!()
+    }
+
+    pub fn room(&self) -> Result<String, ParseError> {
+        let room = get_text_from_id(
+            &self.dom,
+            &*format!(
+                "{}{}{}{}",
+                ROOM_TAG_PARTS[0],
+                self.class_num + 1,
+                ROOM_TAG_PARTS[1],
+                self.group_num
+            ),
+        )?;
+        todo!()
+    }
+
+    pub fn instructor(&self) -> Result<String, ParseError> {
+        let instructor = get_text_from_id(
+            &self.dom,
+            &*format!(
+                "{}{}{}{}{}{}",
+                INSTRUCTOR_TAG_PARTS[0],
+                self.class_num + 1,
+                INSTRUCTOR_TAG_PARTS[1],
+                INSTRUCTOR_TAG_SERIES[self.class_num as usize],
+                INSTRUCTOR_TAG_PARTS[2],
+                self.group_num
+            ),
+        )?;
+        todo!()
+    }
+
+    pub fn open_seats(&self) -> Result<u32, ParseError> {
+        todo!()
+    }
+
+    pub fn closed_seats(&self) -> Result<u32, ParseError> {
+        todo!()
+    }
+
+    fn class_num(&self) -> Result<&str, ParseError> {
+        get_text_from_id(
+            &self.dom,
+            &*format!(
+                "{}{}{}{}{}{}",
+                CLASS_ID_TAG_PARTS[0],
+                self.class_num + 1,
+                CLASS_ID_TAG_PARTS[1],
+                CLASS_ID_TAG_PARTS[self.class_num as usize],
+                CLASS_ID_TAG_PARTS[2],
+                self.group_num
+            ),
+        )
+    }
+
+    fn datetime(&self) -> Result<Option<&str>, ParseError> {
+        get_text_from_id(
+            &self.dom,
+            &*format!(
+                "{}{}{}{}{}{}",
+                DATETIME_TAG_PARTS[0],
+                self.class_num + 1,
+                DATETIME_TAG_PARTS[1],
+                DATETIME_TAG_SERIES[self.class_num as usize],
+                DATETIME_TAG_SERIES[2],
+                self.group_num
+            ),
+        )
+        // If the tag is missing it could mean `Time Conflict` is being displayed. In that
+        // case, skip it and label the datetime as non-existent
+        .map_or_else(
+            |err| match err {
+                ParseError::MissingTag => Ok(None),
+                _ => Err(err),
+            },
+            |value| Ok(Some(value)),
+        )
+    }
+
+    fn seats(&self) -> Result<&str, ParseError> {
+        get_text_from_id(
+            &self.dom,
+            &*format!(
+                "{}{}{}{}",
+                SEATS_TAG_PARTS[0],
+                self.class_num + 1,
+                SEATS_TAG_PARTS[1],
+                self.group_num
+            ),
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ClassType {
+    Recitation,
+    Lab,
+    Lecture,
+    Seminar,
+}
+
+fn get_text_from_id<'a>(dom: &'a VDom, id: &str) -> Result<&'a str, ParseError> {
+    let text = dom
+        .get_element_by_id(id)
+        .ok_or(ParseError::MissingTag)?
+        .get(dom.parser())
+        // We know the element exists in the DOM because that's where we got it from
+        .unwrap()
+        .inner_text(dom.parser());
+    match text {
+        Cow::Borrowed(string) => Ok(string),
+        // TODO: this is relying on implementation details, make it more explicit
+        // If it's owned, that means the element had multiple sub-nodes, which shouldn't be the
+        // case
+        Cow::Owned(_) => Err(ParseError::UnknownFormat),
+    }
+}
+
+// TODO: add more specific errors and more context
 #[derive(Debug, Error)]
 pub enum ParseError {
     /// XML is not in a valid format.
@@ -136,4 +317,7 @@ pub enum ParseError {
     /// GitHub if this error occurs.
     #[error("could not parse HTML due to unknown format")]
     UnknownFormat,
+    /// HTML tag for class does not exist
+    #[error("could not find tag for class in HTML")]
+    MissingTag,
 }

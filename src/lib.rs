@@ -7,17 +7,20 @@ mod session;
 #[derive(Debug, Clone)]
 pub struct ClassGroup {
     classes: Vec<Class>,
-    open: bool,
+    // TODO: get `win6divUB_SR_FL_WRK_HTMLAREA1$5` and retrieve sub-node
+    // open: bool,
+    session: String,
+    start_date: NaiveDateTime,
+    end_date: NaiveDateTime,
 }
 
 #[derive(Debug, Clone)]
 pub struct Class {
     r#type: ClassType,
     class_id: u32,
-    session: String,
     section: String,
-    start_date: NaiveDateTime,
-    end_date: NaiveDateTime,
+    start_day: NaiveDateTime,
+    end_day: NaiveDateTime,
     room: String,
     instructor: String,
     open_seats: u32,
