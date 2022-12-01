@@ -10,7 +10,7 @@
 
 `ubs` is a library for fetching University at Buffalo (UB) class schedules in real-time. This includes class openings, start/end date/time, class types (Recitation, Lab, Lecture, Seminar), class id, class section, room number, instructor, open/closed seats, etc.
 
-The goal of this project is to provide an easy and descriptive interface for retrieving class schedule information. It shall also make use of idiomatic techniques, such as async/await and lazy evaluation to attribute high-performance and low-memory code.
+The goal of this project is to provide an easy and descriptive interface for retrieving class schedule information. It will also make use of idiomatic techniques, such as async/await and lazy evaluation to attribute high-performance and low-memory code.
 
 ## Examples
 Below is a snippet of fetching live class information.
