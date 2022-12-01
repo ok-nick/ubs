@@ -7,6 +7,14 @@ use hyper::{
 };
 use thiserror::Error;
 
+// TODO: remove excess queries from url
+const FAKE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_MAIN_FL.GBL?Page=SSR_CLSRCH_MAIN_FL&pslnkid=CS_S201605302223124733554248&ICAJAXTrf=true&ICAJAX=1&ICMDTarget=start&ICPanelControlStyle=%20pst_side1-fixed%20pst_panel-mode%20";
+const FAKE2_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_ES_FL.GBL?Page=SSR_CLSRCH_ES_FL&SEARCH_GROUP=SSR_CLASS_SEARCH_LFF&SEARCH_TEXT=gly%20105&ES_INST=UBFLO&ES_STRM=2231&ES_ADV=N&INVOKE_SEARCHAGAIN=PTSF_GBLSRCH_FLUID";
+const PAGE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CRSE_INFO_FL.GBL?Page=SSR_CRSE_INFO_FL&Action=U&Page=SSR_CS_WRAP_FL&Action=U&ACAD_CAREER=UGRD&CRSE_ID=004544&CRSE_OFFER_NBR=1&INSTITUTION=UBFLO&STRM=2231&CLASS_NBR=19606&pts_Portal=EMPLOYEE&pts_PortalHostNode=SA&pts_Market=GBL&ICAJAX=1";
+
+const TOKEN_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT";
+const TOKEN_COOKIE_NAME: &str = "psprd-8083-PORTAL-PSJSESSIONID";
+
 #[derive(Debug, Clone)]
 pub struct Session<T> {
     client: Client<T, Body>,
@@ -17,27 +25,12 @@ impl<T> Session<T>
 where
     T: Connect + Clone + Send + Sync + 'static,
 {
-    // TODO: remove excess queries from url
-    const FAKE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_MAIN_FL.GBL?Page=SSR_CLSRCH_MAIN_FL&pslnkid=CS_S201605302223124733554248&ICAJAXTrf=true&ICAJAX=1&ICMDTarget=start&ICPanelControlStyle=%20pst_side1-fixed%20pst_panel-mode%20";
-    const FAKE2_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_ES_FL.GBL?Page=SSR_CLSRCH_ES_FL&SEARCH_GROUP=SSR_CLASS_SEARCH_LFF&SEARCH_TEXT=gly%20105&ES_INST=UBFLO&ES_STRM=2231&ES_ADV=N&INVOKE_SEARCHAGAIN=PTSF_GBLSRCH_FLUID";
-    const PAGE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CRSE_INFO_FL.GBL?Page=SSR_CRSE_INFO_FL&Action=U&Page=SSR_CS_WRAP_FL&Action=U&ACAD_CAREER=UGRD&CRSE_ID=004544&CRSE_OFFER_NBR=1&INSTITUTION=UBFLO&STRM=2231&CLASS_NBR=19606&pts_Portal=EMPLOYEE&pts_PortalHostNode=SA&pts_Market=GBL&ICAJAX=1";
-
     pub fn new(client: Client<T, Body>, token: Token) -> Self {
-        Self {
-            // client: Client::builder().build(
-            //     HttpsConnectorBuilder::new()
-            //         .with_native_roots()
-            //         .https_only()
-            //         .enable_http1()
-            //         .build(),
-            // ),
-            client,
-            token,
-        }
+        Self { client, token }
     }
 
-    // TODO: I can return a `ClassSchedule` struct that provides other helper functions over the
-    // iterator?
+    // TODO: allow choosing semester
+    // TODO: return `ClassSchedule` instead of `Bytes` (also allow for `Bytes` to be returned)
     pub async fn class_schedule_iter(
         &self,
         course_id: u32,
@@ -46,9 +39,9 @@ where
             .then(move |page_num| async move {
                 match page_num.clone() {
                     1 => {
-                        self.get_with_token(Self::FAKE1_URL)?.await?;
-                        self.get_with_token(Self::FAKE2_URL)?.await?;
-                        self.get_with_token(Self::PAGE1_URL)?
+                        self.get_with_token(FAKE1_URL)?.await?;
+                        self.get_with_token(FAKE2_URL)?.await?;
+                        self.get_with_token(PAGE1_URL)?
                             .await
                             // TODO: use `into_err` when stabilized
                             .map_err(Into::<SessionError>::into)
@@ -75,14 +68,11 @@ where
 pub struct Token(Cookie<'static>);
 
 impl Token {
-    const URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT";
-    const TOKEN_NAME: &str = "psprd-8083-PORTAL-PSJSESSIONID";
-
     pub async fn new<T>(client: Client<T, Body>) -> Result<Self, SessionError>
     where
         T: Connect + Clone + Send + Sync + 'static,
     {
-        let first = client.get(Uri::from_static(Self::URL)).await?;
+        let first = client.get(Uri::from_static(TOKEN_URL)).await?;
         let token_cookie =
             Token::token_cookie(first.headers()).ok_or(SessionError::TokenCookieNotFound)?;
 
@@ -119,7 +109,7 @@ impl Token {
                     .ok()
                     .and_then(|raw_cookie| Cookie::parse(raw_cookie).ok())
             })
-            .find(|cookie| cookie.name() == Token::TOKEN_NAME)
+            .find(|cookie| cookie.name() == TOKEN_COOKIE_NAME)
     }
 }
 

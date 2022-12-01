@@ -1,12 +1,15 @@
-use std::{borrow::Cow, str, sync::Arc};
+use std::{borrow::Cow, str};
 
-use chrono::NaiveDateTime;
+use chrono::{NaiveDate, NaiveDateTime};
+use hyper::body::Bytes;
 use quick_xml::{events::Event, Reader};
 use thiserror::Error;
-use tl::{ParserOptions, VDom};
+use tl::{ParserOptions, VDom, VDomGuard};
 
 const CLASSES_PER_PAGE: u32 = 50;
 const CLASSES_PER_GROUP: u32 = 3;
+
+const DATES_FORMAT: &str = "%D";
 
 // Rust does macro expansion before resolving consts, therefore I cannot embed `{}` directly
 // into the consts and use the `format!` macro.
@@ -37,38 +40,33 @@ const INSTRUCTOR_TAG_SERIES: [u32; 3] = [86, 161, 162];
 // Second is the class group index ((page * 50) - 1)
 const SEATS_TAG_PARTS: [&str; 2] = ["SSR_CLSRCH_F_WK_SSR_DESCR50_", "$"];
 
-#[derive(Debug, Clone)]
-pub struct ClassScheduleParser<'a> {
-    bytes: &'a [u8],
+#[derive(Debug)]
+pub struct ClassSchedule {
+    dom: VDomGuard,
     page: u32,
 }
 
-impl<'a> ClassScheduleParser<'a> {
-    // TODO: see if I can extract the page from the data
+// TODO: search for TERM_VAL_TBL_DESCR to get "Spring 2023"
+impl ClassSchedule {
+    // `Bytes` is taken as a parameter since it's used in `Session` and because it can be converted to a `Vec` no-op
+    // TODO: fact check ^
     // Page starts from 0
-    pub fn new(bytes: &'a [u8], page: u32) -> Self {
-        Self { bytes, page }
-    }
-
-    pub async fn class_iter(&self) -> ClassGroup {
-        todo!()
-    }
-
-    fn parse_xml(&self) -> Result<&[u8], ParseError> {
-        let mut reader = Reader::from_reader(self.bytes);
+    // TODO: see if I can extract the page from the data ^
+    pub fn new(bytes: Bytes, page: u32) -> Result<Self, ParseError> {
+        let mut reader = Reader::from_reader(&*bytes);
         loop {
             match reader.read_event()? {
                 Event::Start(event) => {
                     if event.name().as_ref() == b"FIELD" {
                         if let Some(attribute) = event.try_get_attribute("id")? {
                             // First page has different XML than the rest
-                            if self.page == 0
+                            if page == 0
                                 && &*attribute.value == b"win3divSSR_CLSRCH_F_WK_SSR_GROUP_BOX_1"
                                 || &*attribute.value == b"divPAGECONTAINER_TGT"
                             {
                                 // TODO: does this get what's inside the CData padding?
                                 let range = reader.read_to_end(event.to_end().name())?;
-                                return Ok(&self.bytes[range]);
+                                return Self::from_parsed(bytes.slice(range), page);
                             }
                         }
                     }
@@ -81,46 +79,44 @@ impl<'a> ClassScheduleParser<'a> {
         Err(ParseError::FieldMissing)
     }
 
-    // Search for TERM_VAL_TBL_DESCR to get "Spring 2023"
-    // TODO: I can return an iterator over each class group rather than collecting
-    fn parse_html(&self) -> Result<Vec<ClassGroup<'a>>, ParseError> {
-        let string = str::from_utf8(self.bytes)?;
+    pub fn from_parsed(bytes: Bytes, page: u32) -> Result<Self, ParseError> {
+        let string = String::from_utf8(Into::<Vec<u8>>::into(bytes))?;
         // TODO: consider enabling tracking for perf and the Arc isn't too pretty
-        let dom = Arc::new(tl::parse(string, ParserOptions::default())?);
+        let dom = unsafe { tl::parse_owned(string, ParserOptions::default())? };
 
+        Ok(Self { dom, page })
+    }
+
+    pub fn group_iter<'a>(&'a self) -> impl Iterator<Item = ClassGroup<'a>> + '_ {
         // Every page contains the bytes of the previous pages
         let first_class_index = self.page.saturating_sub(1) * CLASSES_PER_PAGE;
         let last_class_index = (self.page * CLASSES_PER_PAGE) - 1;
-        Ok((first_class_index..last_class_index)
-            .map(|group_num| ClassGroup {
-                classes: (0..CLASSES_PER_GROUP)
-                    .map(|class_num| Class {
-                        dom: dom.clone(),
-                        class_num,
-                        group_num,
-                    })
-                    .collect(),
-                dom: dom.clone(),
-                group_num,
-            })
-            .collect())
+
+        (first_class_index..last_class_index).map(|group_num| ClassGroup {
+            dom: self.dom.get_ref(),
+            group_num,
+        })
     }
 }
 
 // TODO: Every lecture is paired with every possible combo of recs/labs, I can simplify this
 #[derive(Debug, Clone)]
 pub struct ClassGroup<'a> {
-    dom: Arc<VDom<'a>>,
-    classes: Vec<Class<'a>>,
+    dom: &'a VDom<'a>,
     group_num: u32,
 }
 
 impl<'a> ClassGroup<'a> {
-    pub fn classes(&self) -> &[Class<'a>] {
-        &self.classes
+    pub fn class_iter(&self) -> impl Iterator<Item = Class<'a>> + '_ {
+        (0..CLASSES_PER_GROUP).map(|class_num| Class {
+            dom: &self.dom,
+            class_num,
+            group_num: self.group_num,
+        })
     }
 
     // TODO: get `win6divUB_SR_FL_WRK_HTMLAREA1$5` and retrieve sub-node
+    // Or get element of class ps-box-value and use it's inner text
     pub fn is_open(&self) -> Result<bool, ParseError> {
         todo!()
     }
@@ -133,26 +129,43 @@ impl<'a> ClassGroup<'a> {
         todo!()
     }
 
-    pub fn start_date(&self) -> Result<NaiveDateTime, ParseError> {
-        todo!()
+    pub fn start_date(&self) -> Result<NaiveDate, ParseError> {
+        Ok(self.dates()?.0)
     }
 
-    pub fn end_date(&self) -> Result<NaiveDateTime, ParseError> {
-        todo!()
+    pub fn end_date(&self) -> Result<NaiveDate, ParseError> {
+        Ok(self.dates()?.1)
     }
 
-    pub fn dates(&self) -> Result<&str, ParseError> {
-        get_text_from_id(
+    // 01/30/2023 - 05/12/2023
+    fn dates(&self) -> Result<(NaiveDate, NaiveDate), ParseError> {
+        let dates = get_text_from_id(
             &self.dom,
             &*format!("{}{}", DATES_TAG_PARTS[0], self.group_num),
-        )
+        )?;
+        let mut split_dates = dates.split(" - ");
+
+        // TODO: remove boilerplate
+        Ok((
+            NaiveDate::parse_from_str(
+                // TODO: more specific error type, here and below
+                split_dates.next().ok_or(ParseError::UnknownFormat)?,
+                DATES_FORMAT,
+            )
+            .or(Err(ParseError::UnknownFormat))?,
+            NaiveDate::parse_from_str(
+                split_dates.next().ok_or(ParseError::UnknownFormat)?,
+                DATES_FORMAT,
+            )
+            .or(Err(ParseError::UnknownFormat))?,
+        ))
     }
 }
 
 // TODO: empty text will equal `&nbsp;`
 #[derive(Debug, Clone)]
 pub struct Class<'a> {
-    dom: Arc<VDom<'a>>,
+    dom: &'a VDom<'a>,
     class_num: u32,
     group_num: u32,
 }
@@ -178,8 +191,9 @@ impl Class<'_> {
         todo!()
     }
 
-    pub fn room(&self) -> Result<String, ParseError> {
-        let room = get_text_from_id(
+    // Sometimes it returns `Arr Arr`
+    pub fn room(&self) -> Result<&str, ParseError> {
+        get_text_from_id(
             &self.dom,
             &*format!(
                 "{}{}{}{}",
@@ -188,12 +202,11 @@ impl Class<'_> {
                 ROOM_TAG_PARTS[1],
                 self.group_num
             ),
-        )?;
-        todo!()
+        )
     }
 
-    pub fn instructor(&self) -> Result<String, ParseError> {
-        let instructor = get_text_from_id(
+    pub fn instructor(&self) -> Result<&str, ParseError> {
+        get_text_from_id(
             &self.dom,
             &*format!(
                 "{}{}{}{}{}{}",
@@ -204,8 +217,7 @@ impl Class<'_> {
                 INSTRUCTOR_TAG_PARTS[2],
                 self.group_num
             ),
-        )?;
-        todo!()
+        )
     }
 
     pub fn open_seats(&self) -> Result<u32, ParseError> {
@@ -255,8 +267,9 @@ impl Class<'_> {
         )
     }
 
-    fn seats(&self) -> Result<&str, ParseError> {
-        get_text_from_id(
+    // TODO: use regex for more accurate results
+    fn seats(&self) -> Result<(u32, u32), ParseError> {
+        let seats = get_text_from_id(
             &self.dom,
             &*format!(
                 "{}{}{}{}",
@@ -265,7 +278,9 @@ impl Class<'_> {
                 SEATS_TAG_PARTS[1],
                 self.group_num
             ),
-        )
+        );
+        // TODO: switch to using regex crate, it's getting complicated
+        todo!()
     }
 }
 
@@ -305,7 +320,8 @@ pub enum ParseError {
     FieldMissing,
     /// HTML is not valid Utf-8.
     #[error("could not parse HTML due to invalid Utf-8 encoding")]
-    HtmlInvalidUtf8(#[from] str::Utf8Error),
+    // HtmlInvalidUtf8(#[from] str::Utf8Error),
+    HtmlInvalidUtf8(#[from] std::string::FromUtf8Error),
     /// HTML is not in a valid format.
     #[error("could not parse HTML due to invalid format")]
     InvalidHtmlFormat(#[from] tl::errors::ParseError),
