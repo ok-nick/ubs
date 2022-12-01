@@ -21,7 +21,7 @@ Below is a snippet of fetching live class information.
 ## FAQ
 
 ### How does it work?
-It works by first creating network requests that are directly called to UB servers from [this link](https://www.pub.hub.buffalo.edu/). The backend API was reversed-engineered, meaning there was no use of browser emulation, making it super fast and low footprint. The result of the requests are parsed in a series of two stages, XML and HTML. The XML is first parsed for its inner HTML, which is then parsed, cached and stored. As the class-like structs are being called, the parsed HTML is searched lazily.
+It works by first creating network requests that are directly called to UB servers from [this link](https://www.pub.hub.buffalo.edu/). The backend API was reversed-engineered, meaning there was no use of browser emulation, making it super fast and low footprint. The result of the requests are parsed in a series of two stages, XML and HTML. The XML is parsed first for its inner HTML, which is then parsed, cached, and stored internally. As the class-like structs are called, the parsed HTML is lazily searched for class information and returned to the caller.
 
 ### Could I use this library from other languages?
 No, not yet at least. If you desire to use `ubs` from other languages, please leave an issue so I can see the demand. In the case that it's decided to be cross-language, a C API will be made so that languages with FFI support would be available.
