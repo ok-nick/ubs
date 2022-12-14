@@ -258,6 +258,7 @@ impl Class<'_> {
         )
         // If the tag is missing it could mean `Time Conflict` is being displayed. In that
         // case, skip it and label the datetime as non-existent
+        // TODO: but it could also mean the format is unknown. Return error with source attached.
         .map_or_else(
             |err| match err {
                 ParseError::MissingTag => Ok(None),

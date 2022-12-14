@@ -7,12 +7,20 @@ edition = "2021"
 quick-xml = "0.26.0"
 tl = "0.7.7"
 hyper = { version = "0.14.23", features = ["client", "http1"] }
-hyper-rustls = "0.23.1"
 cookie = "0.16.1"
 futures = "0.3.25"
 chrono = "0.4.23"
 thiserror = "1.0.37"
 
+# hyper-rustls = { version = "0.23.1", optional = true }
+hyper-rustls = { version = "0.23.1" }
+
+[dev-dependencies]
+tokio = { version = "1.22.0", features = ["rt", "macros"], default-features = false }
+
 [features]
 # Enables SIMD accelerated parsing for HTML (requires nightly)
 simd = ["tl/simd"]
+# Enables easy HTTPS client creation
+# TODO: remove http1 feature from hyper main dep
+# client = ["hyper-rustls", "hyper/http1"]

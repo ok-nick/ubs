@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use cookie::Cookie;
 use futures::{stream, StreamExt, TryFutureExt, TryStream, TryStreamExt};
 use hyper::{
@@ -15,52 +17,56 @@ const PAGE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE
 const TOKEN_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT";
 const TOKEN_COOKIE_NAME: &str = "psprd-8083-PORTAL-PSJSESSIONID";
 
-#[derive(Debug, Clone)]
-pub struct Session<T> {
+pub struct ScheduleBytesStream<T> {
     client: Client<T, Body>,
-    token: Token,
+    token: Arc<str>,
 }
 
-impl<T> Session<T>
+impl<T> ScheduleBytesStream<T> {
+    pub fn new(client: Client<T, Body>, token: &Token) -> Self {
+        Self {
+            client,
+            token: Arc::from(token.to_string_cookie()),
+        }
+    }
+}
+
+impl<T> ScheduleBytesStream<T>
 where
     T: Connect + Clone + Send + Sync + 'static,
 {
-    pub fn new(client: Client<T, Body>, token: Token) -> Self {
-        Self { client, token }
-    }
-
     // TODO: allow choosing semester
-    // TODO: return `ClassSchedule` instead of `Bytes` (also allow for `Bytes` to be returned)
-    pub async fn class_schedule_iter(
+    // TODO: AsRef<str>
+    pub fn schedule_iter<'a>(
         &self,
-        course_id: u32,
-    ) -> impl TryStream<Ok = Bytes, Error = SessionError> + '_ {
+        course_id: &'a str,
+    ) -> impl TryStream<Ok = Bytes, Error = ScheduleBytesError> + 'a {
+        let client = self.client.clone();
+        let token = self.token.clone();
         stream::iter(1..)
-            .then(move |page_num| async move {
-                match page_num.clone() {
-                    1 => {
-                        self.get_with_token(FAKE1_URL)?.await?;
-                        self.get_with_token(FAKE2_URL)?.await?;
-                        self.get_with_token(PAGE1_URL)?
-                            .await
+            .then(move |page_num| {
+                // TODO: avoid cloning twice?
+                let client = client.clone();
+                let token = token.clone();
+                async move {
+                    match page_num {
+                        1 => {
+                            get_with_token(&client, &token, FAKE1_URL)?.await?;
+                            get_with_token(&client, &token, FAKE2_URL)?.await?;
                             // TODO: use `into_err` when stabilized
-                            .map_err(Into::<SessionError>::into)
-                    }
-                    2 => {
-                        // TODO: this case is just a phony request, recurse
-                        todo!()
-                    }
-                    _ => {
-                        todo!()
+                            Ok(get_with_token(&client, &token, PAGE1_URL)?.await?)
+                        }
+                        2 => {
+                            // TODO: this case is just a phony request, recurse
+                            todo!()
+                        }
+                        _ => {
+                            todo!()
+                        }
                     }
                 }
             })
             .and_then(|response| body::to_bytes(response.into_body()).err_into())
-    }
-
-    #[inline]
-    fn get_with_token(&self, uri: &'static str) -> Result<ResponseFuture, SessionError> {
-        get_with_token(&self.client, self.token.to_string_cookie(), uri)
     }
 }
 
@@ -68,27 +74,27 @@ where
 pub struct Token(Cookie<'static>);
 
 impl Token {
-    pub async fn new<T>(client: Client<T, Body>) -> Result<Self, SessionError>
+    pub async fn new<T>(client: &Client<T, Body>) -> Result<Self, ScheduleBytesError>
     where
         T: Connect + Clone + Send + Sync + 'static,
     {
         let first = client.get(Uri::from_static(TOKEN_URL)).await?;
         let token_cookie =
-            Token::token_cookie(first.headers()).ok_or(SessionError::TokenCookieNotFound)?;
+            Token::token_cookie(first.headers()).ok_or(ScheduleBytesError::TokenCookieNotFound)?;
 
         // TODO: use redirect Location from Self::URL rather than hardcoding
         // What if any of the requests redirect? I need to handle them all, use follow_redirects
         // lib
-        let redirect_uri = first.headers().get(header::LOCATION);
+        // let redirect_uri = first.headers().get(header::LOCATION);
         let second = get_with_token(
             &client,
-            token_cookie.to_string(),
+            &token_cookie.to_string(),
             "https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT&"
         )?.await?;
 
         Ok(Self(
             Token::token_cookie(second.headers())
-                .ok_or(SessionError::TokenCookieNotFound)?
+                .ok_or(ScheduleBytesError::TokenCookieNotFound)?
                 .into_owned(),
         ))
     }
@@ -113,11 +119,13 @@ impl Token {
     }
 }
 
+#[inline]
 fn get_with_token<T>(
     client: &Client<T, Body>,
-    token: String,
+    token: &str,
+    // TODO: Into<Uri>
     uri: &'static str,
-) -> Result<ResponseFuture, SessionError>
+) -> Result<ResponseFuture, ScheduleBytesError>
 where
     T: Connect + Clone + Send + Sync + 'static,
 {
@@ -131,7 +139,7 @@ where
 
 /// Represents errors that can occur retrieving course data.
 #[derive(Debug, Error)]
-pub enum SessionError {
+pub enum ScheduleBytesError {
     /// An argument to build the HTTP request was invalid.
     /// See more [here](https://docs.rs/http/0.2.8/http/request/struct.Builder.html#errors)
     #[error("an argument while building an HTTP request was invalid")]
