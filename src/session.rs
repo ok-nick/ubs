@@ -17,12 +17,12 @@ const PAGE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE
 const TOKEN_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT";
 const TOKEN_COOKIE_NAME: &str = "psprd-8083-PORTAL-PSJSESSIONID";
 
-pub struct ScheduleBytesStream<T> {
+pub struct Session<T> {
     client: Client<T, Body>,
     token: Arc<str>,
 }
 
-impl<T> ScheduleBytesStream<T> {
+impl<T> Session<T> {
     pub fn new(client: Client<T, Body>, token: &Token) -> Self {
         Self {
             client,
@@ -31,7 +31,7 @@ impl<T> ScheduleBytesStream<T> {
     }
 }
 
-impl<T> ScheduleBytesStream<T>
+impl<T> Session<T>
 where
     T: Connect + Clone + Send + Sync + 'static,
 {
@@ -40,7 +40,7 @@ where
     pub fn schedule_iter<'a>(
         &self,
         course_id: &'a str,
-    ) -> impl TryStream<Ok = Bytes, Error = ScheduleBytesError> + 'a {
+    ) -> impl TryStream<Ok = Bytes, Error = SessionError> + 'a {
         let client = self.client.clone();
         let token = self.token.clone();
         stream::iter(1..)
@@ -74,13 +74,13 @@ where
 pub struct Token(Cookie<'static>);
 
 impl Token {
-    pub async fn new<T>(client: &Client<T, Body>) -> Result<Self, ScheduleBytesError>
+    pub async fn new<T>(client: &Client<T, Body>) -> Result<Self, SessionError>
     where
         T: Connect + Clone + Send + Sync + 'static,
     {
         let first = client.get(Uri::from_static(TOKEN_URL)).await?;
         let token_cookie =
-            Token::token_cookie(first.headers()).ok_or(ScheduleBytesError::TokenCookieNotFound)?;
+            Token::token_cookie(first.headers()).ok_or(SessionError::TokenCookieNotFound)?;
 
         // TODO: use redirect Location from Self::URL rather than hardcoding
         // What if any of the requests redirect? I need to handle them all, use follow_redirects
@@ -94,7 +94,7 @@ impl Token {
 
         Ok(Self(
             Token::token_cookie(second.headers())
-                .ok_or(ScheduleBytesError::TokenCookieNotFound)?
+                .ok_or(SessionError::TokenCookieNotFound)?
                 .into_owned(),
         ))
     }
@@ -125,7 +125,7 @@ fn get_with_token<T>(
     token: &str,
     // TODO: Into<Uri>
     uri: &'static str,
-) -> Result<ResponseFuture, ScheduleBytesError>
+) -> Result<ResponseFuture, SessionError>
 where
     T: Connect + Clone + Send + Sync + 'static,
 {
@@ -139,7 +139,7 @@ where
 
 /// Represents errors that can occur retrieving course data.
 #[derive(Debug, Error)]
-pub enum ScheduleBytesError {
+pub enum SessionError {
     /// An argument to build the HTTP request was invalid.
     /// See more [here](https://docs.rs/http/0.2.8/http/request/struct.Builder.html#errors)
     #[error("an argument while building an HTTP request was invalid")]

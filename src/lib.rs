@@ -2,7 +2,7 @@ mod parser;
 mod session;
 
 pub use parser::{Class, ClassGroup, ClassSchedule, ClassType, ParseError};
-pub use session::{ScheduleBytesError, ScheduleBytesStream, Token};
+pub use session::{Session, SessionError, Token};
 
 use futures::{TryStream, TryStreamExt};
 use hyper::Client;
@@ -12,7 +12,7 @@ use hyper_rustls::HttpsConnectorBuilder;
 // #[cfg(feature = "client")]
 pub async fn schedule_iter(
     course_id: &str,
-) -> impl TryStream<Ok = ClassSchedule, Error = ScheduleBytesError> + '_ {
+) -> impl TryStream<Ok = ClassSchedule, Error = SessionError> + '_ {
     let client = Client::builder().build(
         HttpsConnectorBuilder::new()
             .with_native_roots()
@@ -21,7 +21,7 @@ pub async fn schedule_iter(
             .build(),
     );
     let token = Token::new(&client).await.unwrap();
-    ScheduleBytesStream::new(client, &token)
+    Session::new(client, &token)
         .schedule_iter(course_id)
         .map_ok(|bytes| ClassSchedule::new(bytes, 0).unwrap())
 }
