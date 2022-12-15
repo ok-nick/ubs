@@ -16,7 +16,7 @@
 The goal of this project is to provide an easy and descriptive interface for retrieving class schedule information. It also makes use of idiomatic techniques, such as async/await and lazy evaluation to additionally attribute high-performance code.
 
 ## Examples
-Below is a snippet of using the high-level API for fetching live class information.
+Below is a snippet of using the high-level API with [tokio](https://github.com/tokio-rs/tokio) for fetching live class information.
 ```rust
 use futures::stream::TryStreamExt;
 
