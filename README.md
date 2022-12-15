@@ -13,23 +13,22 @@
 The goal of this project is to provide an easy and descriptive interface for retrieving class schedule information. It also makes use of idiomatic techniques, such as async/await and lazy evaluation to additionally attribute high-performance code.
 
 ## Examples
-Below is a snippet of fetching live class information.
+Below is a snippet of using the high-level API for fetching live class information.
 ```rust
-use hyper::Client;
-use hyper_rustls::HttpsConnectorBuilder;
-use ubs::{Session, Token};
+use futures::stream::TryStreamExt;
 
-let client = Client::builder().build(
-    HttpsConnectorBuilder::new()
-        .with_native_roots()
-        .https_only()
-        .enable_http1()
-        .build(),
-);
-let session = Session::new(client, Token::new(client).unwrap());
-for (page, bytes) in session.schedule_iter().enumerate() {
-    let class_schedule = ClassSchedule::new(bytes, page);
-    for group in class_schedule.group_iter()
+const CSE115_ID: &str = "004544";
+
+#[tokio::main]
+async fn main() {
+    let schedules = ubs::schedule_iter(CSE115_ID);
+    while let Some(schedule)= schedules.next().await {
+        for group in schedule.group_iter() {
+            for class in group.class_iter() {
+                // do stuff
+            }
+        }
+    }
 }
 ```
 
