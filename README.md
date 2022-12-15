@@ -46,3 +46,5 @@ No, not yet at least. If you desire to use `ubs` from other languages, please le
 ### How stable is this library?
 Not very; there is no guarantee UB will change the API in the future. Do not depend on this library for critical code. If the API does change and `ubs` stops working, please leave an issue for it to be resolved.
 
+### Does this library operate on private information?
+No, this library only uses public information that anyone could obtain.
