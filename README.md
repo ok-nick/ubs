@@ -12,6 +12,9 @@
 
 The goal of this project is to provide an easy and descriptive interface for retrieving class schedule information. It also makes use of idiomatic techniques, such as async/await and lazy evaluation to additionally attribute high-performance code.
 
+> **Warning**
+> This library is still a work in progress. Do not expect full functionality.
+
 ## Examples
 Below is a snippet of using the high-level API for fetching live class information.
 ```rust
