@@ -45,7 +45,9 @@ where
         let token = self.token.clone();
         stream::iter(1..)
             .then(move |page_num| {
-                // TODO: avoid cloning twice?
+                // The inner move captures `client` and `token` from the function's scope,
+                // then the nested async move captures it from the closures' scope.
+                // TODO: when async closures are stabilized this will no longer be necessary?
                 let client = client.clone();
                 let token = token.clone();
                 async move {
