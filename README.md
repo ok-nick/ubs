@@ -24,9 +24,9 @@ const CSE115_ID: &str = "004544";
 
 #[tokio::main]
 async fn main() {
-    let schedules = ubs::schedule_iter(CSE115_ID);
-    while let Some(schedule) = schedules.try_next().await {
-        for group in schedule.unwrap().group_iter() {
+    let schedules = ubs::schedule_iter(CSE115_ID).await.unwrap();
+    while let Some(schedule) = schedules.try_next().await.unwrap() {
+        for group in schedule.group_iter() {
             for class in group.class_iter() {
                 // do stuff
             }
