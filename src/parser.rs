@@ -87,7 +87,7 @@ impl ClassSchedule {
         Ok(Self { dom, page })
     }
 
-    pub fn group_iter<'a>(&'a self) -> impl Iterator<Item = ClassGroup<'a>> + '_ {
+    pub fn group_iter(&self) -> impl Iterator<Item = ClassGroup<'_>> + '_ {
         // Every page contains the bytes of the previous pages
         let first_class_index = self.page.saturating_sub(1) * CLASSES_PER_PAGE;
         let last_class_index = (self.page * CLASSES_PER_PAGE) - 1;
@@ -109,7 +109,7 @@ pub struct ClassGroup<'a> {
 impl<'a> ClassGroup<'a> {
     pub fn class_iter(&self) -> impl Iterator<Item = Class<'a>> + '_ {
         (0..CLASSES_PER_GROUP).map(|class_num| Class {
-            dom: &self.dom,
+            dom: self.dom,
             class_num,
             group_num: self.group_num,
         })
@@ -123,8 +123,8 @@ impl<'a> ClassGroup<'a> {
 
     pub fn session(&self) -> Result<String, ParseError> {
         let session = get_text_from_id(
-            &self.dom,
-            &*format!("{}{}", SESSION_TAG_PARTS[0], self.group_num),
+            self.dom,
+            &format!("{}{}", SESSION_TAG_PARTS[0], self.group_num),
         )?;
         todo!()
     }
@@ -140,8 +140,8 @@ impl<'a> ClassGroup<'a> {
     // 01/30/2023 - 05/12/2023
     fn dates(&self) -> Result<(NaiveDate, NaiveDate), ParseError> {
         let dates = get_text_from_id(
-            &self.dom,
-            &*format!("{}{}", DATES_TAG_PARTS[0], self.group_num),
+            self.dom,
+            &format!("{}{}", DATES_TAG_PARTS[0], self.group_num),
         )?;
         let mut split_dates = dates.split(" - ");
 
@@ -194,8 +194,8 @@ impl Class<'_> {
     // Sometimes it returns `Arr Arr`
     pub fn room(&self) -> Result<&str, ParseError> {
         get_text_from_id(
-            &self.dom,
-            &*format!(
+            self.dom,
+            &format!(
                 "{}{}{}{}",
                 ROOM_TAG_PARTS[0],
                 self.class_num + 1,
@@ -207,8 +207,8 @@ impl Class<'_> {
 
     pub fn instructor(&self) -> Result<&str, ParseError> {
         get_text_from_id(
-            &self.dom,
-            &*format!(
+            self.dom,
+            &format!(
                 "{}{}{}{}{}{}",
                 INSTRUCTOR_TAG_PARTS[0],
                 self.class_num + 1,
@@ -230,8 +230,8 @@ impl Class<'_> {
 
     fn class_num(&self) -> Result<&str, ParseError> {
         get_text_from_id(
-            &self.dom,
-            &*format!(
+            self.dom,
+            &format!(
                 "{}{}{}{}{}{}",
                 CLASS_ID_TAG_PARTS[0],
                 self.class_num + 1,
@@ -245,8 +245,8 @@ impl Class<'_> {
 
     fn datetime(&self) -> Result<Option<&str>, ParseError> {
         get_text_from_id(
-            &self.dom,
-            &*format!(
+            self.dom,
+            &format!(
                 "{}{}{}{}{}{}",
                 DATETIME_TAG_PARTS[0],
                 self.class_num + 1,
@@ -271,7 +271,7 @@ impl Class<'_> {
     // TODO: use regex for more accurate results
     fn seats(&self) -> Result<(u32, u32), ParseError> {
         let seats = get_text_from_id(
-            &self.dom,
+            self.dom,
             &*format!(
                 "{}{}{}{}",
                 SEATS_TAG_PARTS[0],

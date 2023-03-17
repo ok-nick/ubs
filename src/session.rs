@@ -9,6 +9,8 @@ use hyper::{
 };
 use thiserror::Error;
 
+use crate::course::Course;
+
 // TODO: remove excess queries from url
 const FAKE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_MAIN_FL.GBL?Page=SSR_CLSRCH_MAIN_FL&pslnkid=CS_S201605302223124733554248&ICAJAXTrf=true&ICAJAX=1&ICMDTarget=start&ICPanelControlStyle=%20pst_side1-fixed%20pst_panel-mode%20";
 const FAKE2_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_ES_FL.GBL?Page=SSR_CLSRCH_ES_FL&SEARCH_GROUP=SSR_CLASS_SEARCH_LFF&SEARCH_TEXT=gly%20105&ES_INST=UBFLO&ES_STRM=2231&ES_ADV=N&INVOKE_SEARCHAGAIN=PTSF_GBLSRCH_FLUID";
@@ -39,15 +41,15 @@ where
     // TODO: AsRef<str>
     pub fn schedule_iter<'a>(
         &self,
-        course_id: &'a str,
+        course: Course,
     ) -> impl TryStream<Ok = Bytes, Error = SessionError> + 'a {
         let client = self.client.clone();
         let token = self.token.clone();
         stream::iter(1..)
             .then(move |page_num| {
-                // The inner move captures `client` and `token` from the function's scope,
-                // then the nested async move captures it from the closures' scope.
-                // TODO: when async closures are stabilized this will no longer be necessary?
+                // Cloning `client` and `token` above is to avoid having the closure live as long
+                // as `self`. Cloning again is necessary because new ownership is needed for a new
+                // step in the iteration.
                 let client = client.clone();
                 let token = token.clone();
                 async move {
@@ -89,7 +91,7 @@ impl Token {
         // lib
         // let redirect_uri = first.headers().get(header::LOCATION);
         let second = get_with_token(
-            &client,
+            client,
             &token_cookie.to_string(),
             "https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT&"
         )?.await?;
@@ -105,7 +107,7 @@ impl Token {
         self.0.to_string()
     }
 
-    fn token_cookie<'a>(headers: &'a HeaderMap) -> Option<Cookie<'a>> {
+    fn token_cookie(headers: &HeaderMap) -> Option<Cookie<'_>> {
         headers
             .get_all(header::COOKIE)
             .iter()
