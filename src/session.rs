@@ -52,7 +52,9 @@ where
                 // step in the iteration.
                 let client = client.clone();
                 let token = token.clone();
-                async move {
+                // `async move` doesn't implement `Unpin`, thus it is necessary to manually pin it
+                // here.
+                Box::pin(async move {
                     match page_num {
                         1 => {
                             get_with_token(&client, &token, FAKE1_URL)?.await?;
@@ -68,9 +70,9 @@ where
                             todo!()
                         }
                     }
-                }
+                })
             })
-            .and_then(|response| body::to_bytes(response.into_body()).err_into())
+            .and_then(|response| Box::pin(body::to_bytes(response.into_body()).err_into()))
     }
 }
 

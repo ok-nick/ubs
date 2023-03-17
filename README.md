@@ -11,40 +11,41 @@
 > **Warning**
 > This library is still a work in progress. Do not expect full functionality.
 
-`ubs` is a library for fetching University at Buffalo (UB) class schedules in real-time. This includes class openings, start/end date/time, class types (Recitation, Lab, Lecture, Seminar), class id, class section, room number, instructor, open/closed seats, etc.
+`ubs` is a library for fetching University at Buffalo (UB) class schedules in real-time. This includes class openings, start/end date/time, class types (recitation, lab, lecture, seminar), class id, class section, room number, instructor, open/closed seats, etc.
 
-The goal of this project is to provide an easy and descriptive interface for retrieving class schedule information. It also makes use of idiomatic techniques, such as async/await and lazy evaluation to additionally attribute high-performance code.
+The API exposes a high-level and low-level interface, giving users accessibility for either convenience or performance (or both). This is enabled by the use of `async`/`await` syntax and the ability to lazily parse data.
 
 ## Examples
 Below is a snippet of using the high-level API with [tokio](https://github.com/tokio-rs/tokio) for fetching live class information.
 ```rust
 use futures::stream::TryStreamExt;
-
-const CSE115_ID: &str = "004544";
+use ubs::Course;
 
 #[tokio::main]
-async fn main() {
-    let schedules = ubs::schedule_iter(CSE115_ID).await.unwrap();
-    while let Some(schedule) = schedules.try_next().await.unwrap() {
-        for group in schedule.group_iter() {
+async fn main() -> Result<(), ubs::Error> {
+    let mut schedule_iter = ubs::schedule_iter(Course::CSE115).await?;
+    while let Some(schedule) = schedule_iter.try_next().await? {
+        for group in schedule?.group_iter() {
             for class in group.class_iter() {
                 // do stuff
             }
         }
     }
+
+    Ok(())
 }
 ```
 
 ## FAQ
 
 ### How does it work?
-It works by first creating network requests that are directly sent to UB servers from [here](https://www.pub.hub.buffalo.edu/). The backend API was reversed-engineered, meaning there is no use of browser emulation, making it super fast and low footprint. The result of the requests are parsed in a series of two stages: XML then HTML. The XML is parsed first for its inner HTML, which is then parsed, cached, and stored internally. As the class-like structs are called, the parsed HTML is lazily searched for class information and returned to the caller.
+It works by first sending a carefully crafted series of network requests directly to [this url](https://www.pub.hub.buffalo.edu/). The result of the requests are then parsed in two stages: first the XML then the HTML. The HTML is nested inside of the XML, thus the XML is parsed first and cached internally. As the user requests the desired information, the HTML is parsed to spec, following up with regex to parse the values.
 
 ### Could I use this library from other languages?
-No, not yet at least. If you desire to use `ubs` from other languages, please leave an issue so I can see the demand. In the case that it's decided to be cross-language, a C API will be made so that languages with FFI support could be available.
+No...at least not yet. If you'd like to use `ubs` from other languages, please leave an issue to generate demand. There are a few ways of going about this and I'd love to discuss potential opportunities.
 
 ### How stable is this library?
 Not very; there is no guarantee UB will change the API in the future. Do not depend on this library for critical code. If the API does change and `ubs` stops working, please leave an issue for it to be resolved.
 
 ### Does this library operate on private information?
-No, this library only uses public information that anyone could obtain.
+No, this library operates on public information that is accessible by anyone.
