@@ -1,8 +1,9 @@
-use std::{borrow::Cow, str};
+use std::{borrow::Cow, str::FromStr};
 
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime};
 use hyper::body::Bytes;
 use quick_xml::{events::Event, Reader};
+use regex::Regex;
 use thiserror::Error;
 use tl::{ParserOptions, VDom, VDomGuard};
 
@@ -116,17 +117,22 @@ impl<'a> ClassGroup<'a> {
     }
 
     // TODO: get `win6divUB_SR_FL_WRK_HTMLAREA1$5` and retrieve sub-node
-    // Or get element of class ps-box-value and use it's inner text
+    // Or get element of class ps-box-value and use its inner text
     pub fn is_open(&self) -> Result<bool, ParseError> {
         todo!()
     }
 
-    pub fn session(&self) -> Result<String, ParseError> {
+    pub fn session(&self) -> Result<u32, ParseError> {
         let session = get_text_from_id(
             self.dom,
             &format!("{}{}", SESSION_TAG_PARTS[0], self.group_num),
         )?;
-        todo!()
+        // TODO: cleanup
+        let re = Regex::new(r"University (\d\d?) Week Session")
+            .unwrap()
+            .captures(session)
+            .unwrap();
+        Ok(re.get(0).unwrap().as_str().parse().unwrap())
     }
 
     pub fn start_date(&self) -> Result<NaiveDate, ParseError> {
@@ -137,7 +143,6 @@ impl<'a> ClassGroup<'a> {
         Ok(self.dates()?.1)
     }
 
-    // 01/30/2023 - 05/12/2023
     fn dates(&self) -> Result<(NaiveDate, NaiveDate), ParseError> {
         let dates = get_text_from_id(
             self.dom,
@@ -145,7 +150,7 @@ impl<'a> ClassGroup<'a> {
         )?;
         let mut split_dates = dates.split(" - ");
 
-        // TODO: remove boilerplate
+        // TODO: remove boilerplate, regex?
         Ok((
             NaiveDate::parse_from_str(
                 // TODO: more specific error type, here and below
@@ -171,28 +176,49 @@ pub struct Class<'a> {
 }
 
 impl Class<'_> {
+    // TODO: make error
     pub fn r#type(&self) -> Result<ClassType, ParseError> {
-        todo!()
+        // TODO: handle unwrap
+        self.class_info().map(|info| info.2.parse().unwrap())
     }
 
+    // TODO: make error
     pub fn class_id(&self) -> Result<u32, ParseError> {
-        todo!()
+        // TODO: handle unwrap
+        self.class_info().map(|info| info.0.parse().unwrap())
     }
 
-    pub fn section(&self) -> Result<String, ParseError> {
-        todo!()
+    pub fn section(&self) -> Result<&str, ParseError> {
+        self.class_info().map(|info| info.1)
     }
 
-    pub fn start_day(&self) -> Result<NaiveDateTime, ParseError> {
-        todo!()
+    // If the class is asynchronous a datetime doesn't exist.
+    pub fn days_of_week(&self) -> Result<Option<Vec<&str>>, ParseError> {
+        self.datetime()
+            .map(|result| result.map(|datetime| datetime.0))
     }
 
-    pub fn end_day(&self) -> Result<NaiveDateTime, ParseError> {
+    pub fn start_time(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
+        // TODO: fix up
+        self.datetime().map(|result| {
+            result.map(|datetime| {
+                DateTime::from_local(
+                    NaiveDateTime::parse_from_str(datetime.1, "%I:%I%p").unwrap(),
+                    // TODO: double check this
+                    FixedOffset::east_opt(-18000).unwrap(),
+                )
+            })
+        })
+    }
+
+    // TODO: copy above and fix boilerplate
+    pub fn end_time(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
         todo!()
     }
 
     // Sometimes it returns `Arr Arr`
     pub fn room(&self) -> Result<&str, ParseError> {
+        // TODO: use regex to validate result
         get_text_from_id(
             self.dom,
             &format!(
@@ -206,6 +232,8 @@ impl Class<'_> {
     }
 
     pub fn instructor(&self) -> Result<&str, ParseError> {
+        // Not much I can do in terms of validation. Some people have very unique patterns in their
+        // names.
         get_text_from_id(
             self.dom,
             &format!(
@@ -221,15 +249,15 @@ impl Class<'_> {
     }
 
     pub fn open_seats(&self) -> Result<u32, ParseError> {
-        todo!()
+        self.seats().map(|seats| seats.0)
     }
 
-    pub fn closed_seats(&self) -> Result<u32, ParseError> {
-        todo!()
+    pub fn total_seats(&self) -> Result<u32, ParseError> {
+        self.seats().map(|seats| seats.1)
     }
 
-    fn class_num(&self) -> Result<&str, ParseError> {
-        get_text_from_id(
+    fn class_info(&self) -> Result<(&str, &str, &str), ParseError> {
+        let class_num = get_text_from_id(
             self.dom,
             &format!(
                 "{}{}{}{}{}{}",
@@ -240,10 +268,21 @@ impl Class<'_> {
                 CLASS_ID_TAG_PARTS[2],
                 self.group_num
             ),
-        )
+        )?;
+
+        // TODO: fix up
+        let re = Regex::new(r"Class Nbr (\d+) - Section ([A-Z]\d+) ([A-Z]+)")
+            .unwrap()
+            .captures(class_num)
+            .unwrap();
+        Ok((
+            re.get(0).unwrap().as_str(),
+            re.get(1).unwrap().as_str(),
+            re.get(2).unwrap().as_str(),
+        ))
     }
 
-    fn datetime(&self) -> Result<Option<&str>, ParseError> {
+    fn datetime(&self) -> Result<Option<(Vec<&str>, &str, &str)>, ParseError> {
         get_text_from_id(
             self.dom,
             &format!(
@@ -257,31 +296,50 @@ impl Class<'_> {
             ),
         )
         // If the tag is missing it could mean `Time Conflict` is being displayed. In that
-        // case, skip it and label the datetime as non-existent
+        // case, skip it and label the datetime as non-existent.
         // TODO: but it could also mean the format is unknown. Return error with source attached.
         .map_or_else(
             |err| match err {
                 ParseError::MissingTag => Ok(None),
                 _ => Err(err),
             },
-            |value| Ok(Some(value)),
+            |value| {
+                // TODO: cleanup
+                let re = Regex::new(r"((?:[A-Z][a-z]+ ?)+)\s<br />([^ ]+) to ([^<]+)</span>")
+                    .unwrap()
+                    .captures(value)
+                    .unwrap();
+
+                Ok(Some((
+                    re.get(0).unwrap().as_str().split(' ').collect(), // Days of week (e.g. Wednesday)
+                    re.get(1).unwrap().as_str(),                      // Start time (e.g. 3:00PM)
+                    re.get(2).unwrap().as_str(),                      // End time (e.g. 4:00PM)
+                )))
+            },
         )
     }
 
-    // TODO: use regex for more accurate results
     fn seats(&self) -> Result<(u32, u32), ParseError> {
         let seats = get_text_from_id(
             self.dom,
-            &*format!(
+            &format!(
                 "{}{}{}{}",
                 SEATS_TAG_PARTS[0],
                 self.class_num + 1,
                 SEATS_TAG_PARTS[1],
                 self.group_num
             ),
-        );
-        // TODO: switch to using regex crate, it's getting complicated
-        todo!()
+        )?;
+
+        // TODO: fix up (constants and error types)
+        let re = Regex::new(r"Open Seats (\d+) of (\d+)")
+            .unwrap()
+            .captures(seats)
+            .unwrap();
+        Ok((
+            re.get(0).unwrap().as_str().parse().unwrap(), // Open seats
+            re.get(1).unwrap().as_str().parse().unwrap(), // Total seats
+        ))
     }
 }
 
@@ -291,6 +349,21 @@ pub enum ClassType {
     Lab,
     Lecture,
     Seminar,
+}
+
+impl FromStr for ClassType {
+    // TODO: need to make error
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "REC" => ClassType::Recitation,
+            "LAB" => ClassType::Lab,
+            "LEC" => ClassType::Lecture,
+            "SEM" => ClassType::Seminar,
+            _ => return Err(()),
+        })
+    }
 }
 
 fn get_text_from_id<'a>(dom: &'a VDom, id: &str) -> Result<&'a str, ParseError> {

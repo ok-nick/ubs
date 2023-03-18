@@ -16,7 +16,7 @@ const FAKE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE
 const FAKE2_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_ES_FL.GBL?Page=SSR_CLSRCH_ES_FL&SEARCH_GROUP=SSR_CLASS_SEARCH_LFF&SEARCH_TEXT=gly%20105&ES_INST=UBFLO&ES_STRM=2231&ES_ADV=N&INVOKE_SEARCHAGAIN=PTSF_GBLSRCH_FLUID";
 const PAGE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CRSE_INFO_FL.GBL?Page=SSR_CRSE_INFO_FL&Action=U&Page=SSR_CS_WRAP_FL&Action=U&ACAD_CAREER=UGRD&CRSE_ID=004544&CRSE_OFFER_NBR=1&INSTITUTION=UBFLO&STRM=2231&CLASS_NBR=19606&pts_Portal=EMPLOYEE&pts_PortalHostNode=SA&pts_Market=GBL&ICAJAX=1";
 
-const TOKEN_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT";
+const TOKEN_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT&";
 const TOKEN_COOKIE_NAME: &str = "psprd-8083-PORTAL-PSJSESSIONID";
 
 pub struct Session<T> {
@@ -37,7 +37,7 @@ impl<T> Session<T>
 where
     T: Connect + Clone + Send + Sync + 'static,
 {
-    // TODO: allow choosing semester
+    // TODO: allow choosing semester, note that this may be another unique ID per, just like courses
     // TODO: AsRef<str>
     pub fn schedule_iter<'a>(
         &self,
@@ -52,27 +52,60 @@ where
                 // step in the iteration.
                 let client = client.clone();
                 let token = token.clone();
-                // `async move` doesn't implement `Unpin`, thus it is necessary to manually pin it
-                // here.
-                Box::pin(async move {
-                    match page_num {
-                        1 => {
-                            get_with_token(&client, &token, FAKE1_URL)?.await?;
-                            get_with_token(&client, &token, FAKE2_URL)?.await?;
-                            // TODO: use `into_err` when stabilized
-                            Ok(get_with_token(&client, &token, PAGE1_URL)?.await?)
-                        }
-                        2 => {
-                            // TODO: this case is just a phony request, recurse
-                            todo!()
-                        }
-                        _ => {
-                            todo!()
-                        }
-                    }
-                })
+                // `async move` doesn't implement `Unpin`, thus it is necessary to manually pin it.
+                // TODO: simplify this
+                Box::pin(async move { Ok(Self::get_page(&client, &token, page_num).await?.await?) })
             })
             .and_then(|response| Box::pin(body::to_bytes(response.into_body()).err_into()))
+    }
+
+    // TODO: you MUST go page-by-page, otherwise it won't return the correct result?
+    async fn get_page(
+        client: &Client<T, Body>,
+        token: &str,
+        mut page_num: u32,
+    ) -> Result<ResponseFuture, SessionError> {
+        // If the page is 2 then it sends a fake request and internally increments the page to 3.
+        // This statement prevents page 3 from being returned twice.
+        if page_num >= 3 {
+            page_num += 1;
+        }
+
+        Self::get_page_internal(client, token, page_num).await
+    }
+
+    async fn get_page_internal(
+        client: &Client<T, Body>,
+        token: &str,
+        mut page_num: u32,
+    ) -> Result<ResponseFuture, SessionError> {
+        loop {
+            match page_num {
+                1 => {
+                    get_with_token(client, token, FAKE1_URL)?.await?;
+                    get_with_token(client, token, FAKE2_URL)?.await?;
+                    return get_with_token(client, token, PAGE1_URL);
+                }
+                2 => {
+                    // TODO: Multiple things to know about >1 pages:
+                    //  1. Each page holds 50 groups max.
+                    //  2. They are all POST requests with a slightly differing body (ICState and
+                    //     ICAction).
+                    //  3. How I currently have it set up is not how it may actually work. Meaning,
+                    //     I know there is a second "phony" request, though invoking it does not
+                    //     seem to enable the next page to return the correct result. I'm either
+                    //     missing some minute detail in the request or I need to send more phony
+                    //     requests prior.
+
+                    // async recursion is a little funky and would require me to pull in the
+                    // `async-recursion` crate. It's better off with a little mutation.
+                    page_num += 1;
+                }
+                _ => {
+                    todo!();
+                }
+            }
+        }
     }
 }
 
@@ -84,22 +117,9 @@ impl Token {
     where
         T: Connect + Clone + Send + Sync + 'static,
     {
-        let first = client.get(Uri::from_static(TOKEN_URL)).await?;
-        let token_cookie =
-            Token::token_cookie(first.headers()).ok_or(SessionError::TokenCookieNotFound)?;
-
-        // TODO: use redirect Location from Self::URL rather than hardcoding
-        // What if any of the requests redirect? I need to handle them all, use follow_redirects
-        // lib
-        // let redirect_uri = first.headers().get(header::LOCATION);
-        let second = get_with_token(
-            client,
-            &token_cookie.to_string(),
-            "https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT&"
-        )?.await?;
-
+        let response = client.get(Uri::from_static(TOKEN_URL)).await?;
         Ok(Self(
-            Token::token_cookie(second.headers())
+            Token::token_cookie(response.headers())
                 .ok_or(SessionError::TokenCookieNotFound)?
                 .into_owned(),
         ))

@@ -45,7 +45,7 @@ It works by first sending a carefully crafted series of network requests directl
 No...at least not yet. If you'd like to use `ubs` from other languages, please leave an issue to generate demand. There are a few ways of going about this and I'd love to discuss potential opportunities.
 
 ### How stable is this library?
-Not very; there is no guarantee UB will change the API in the future. Do not depend on this library for critical code. If the API does change and `ubs` stops working, please leave an issue for it to be resolved.
+Not very; there is no guarantee UB will change the API in the future. Do not depend on this library for critical code. However, for the most part, issues will be caught early on due to the CI that is ran daily. Though, if the API does change and `ubs` stops working, please leave an issue for it to be resolved.
 
 ### Does this library operate on private information?
 No, this library operates on public information that is accessible by anyone.
