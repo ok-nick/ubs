@@ -5,18 +5,24 @@ use futures::{stream, StreamExt, TryFutureExt, TryStream, TryStreamExt};
 use hyper::{
     body::{self, Bytes},
     client::{connect::Connect, ResponseFuture},
-    header, Body, Client, HeaderMap, Request, Uri,
+    header, Body, Client, HeaderMap, Request,
 };
 use thiserror::Error;
 
 use crate::course::Course;
 
+const USER_AGENT: &str = "ubs";
+
 // TODO: remove excess queries from url
 const FAKE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_MAIN_FL.GBL?Page=SSR_CLSRCH_MAIN_FL&pslnkid=CS_S201605302223124733554248&ICAJAXTrf=true&ICAJAX=1&ICMDTarget=start&ICPanelControlStyle=%20pst_side1-fixed%20pst_panel-mode%20";
 const FAKE2_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_ES_FL.GBL?Page=SSR_CLSRCH_ES_FL&SEARCH_GROUP=SSR_CLASS_SEARCH_LFF&SEARCH_TEXT=gly%20105&ES_INST=UBFLO&ES_STRM=2231&ES_ADV=N&INVOKE_SEARCHAGAIN=PTSF_GBLSRCH_FLUID";
-const PAGE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CRSE_INFO_FL.GBL?Page=SSR_CRSE_INFO_FL&Action=U&Page=SSR_CS_WRAP_FL&Action=U&ACAD_CAREER=UGRD&CRSE_ID=004544&CRSE_OFFER_NBR=1&INSTITUTION=UBFLO&STRM=2231&CLASS_NBR=19606&pts_Portal=EMPLOYEE&pts_PortalHostNode=SA&pts_Market=GBL&ICAJAX=1";
+const PAGE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CRSE_INFO_FL.GBL?Page=SSR_CRSE_INFO_FL&Page=SSR_CS_WRAP_FL&ACAD_CAREER=UGRD&CRSE_ID=004544&CRSE_OFFER_NBR=1&INSTITUTION=UBFLO&STRM=2231";
+// STRM = semester id
+// CRSE = course id
+// ACAD_CAREER = undergrad/grad/law/etc.
 
-const TOKEN_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT&";
+const TOKEN1_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT";
+const TOKEN2_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT&";
 const TOKEN_COOKIE_NAME: &str = "psprd-8083-PORTAL-PSJSESSIONID";
 
 pub struct Session<T> {
@@ -63,30 +69,44 @@ where
     async fn get_page(
         client: &Client<T, Body>,
         token: &str,
-        mut page_num: u32,
-    ) -> Result<ResponseFuture, SessionError> {
-        // If the page is 2 then it sends a fake request and internally increments the page to 3.
-        // This statement prevents page 3 from being returned twice.
-        if page_num >= 3 {
-            page_num += 1;
-        }
-
-        Self::get_page_internal(client, token, page_num).await
-    }
-
-    async fn get_page_internal(
-        client: &Client<T, Body>,
-        token: &str,
-        mut page_num: u32,
+        page_num: u32,
     ) -> Result<ResponseFuture, SessionError> {
         loop {
             match page_num {
                 1 => {
-                    get_with_token(client, token, FAKE1_URL)?.await?;
-                    get_with_token(client, token, FAKE2_URL)?.await?;
-                    return get_with_token(client, token, PAGE1_URL);
+                    // TODO: fix boilerplate
+                    client
+                        .request(
+                            Request::builder()
+                                .uri(FAKE1_URL)
+                                .header(header::COOKIE, token)
+                                .body(Body::empty())?,
+                        )
+                        .await?;
+                    client
+                        .request(
+                            Request::builder()
+                                .uri(FAKE2_URL)
+                                .header(header::COOKIE, token)
+                                .body(Body::empty())?,
+                        )
+                        .await?;
+                    let page = client.request(
+                        Request::builder()
+                            .uri(PAGE1_URL)
+                            .header(header::USER_AGENT, USER_AGENT)
+                            .header(header::COOKIE, token)
+                            .header(header::COOKIE, "HttpOnly")
+                            .header(header::COOKIE, "Path=/")
+                            .body(Body::empty())?,
+                    );
+                    // TODO: do I need to send the fake result here (with ICState=2) for the next
+                    // pages to load?
+                    return Ok(page);
                 }
-                2 => {
+                _ => {
+                    // The second page has an `ICState` of 3.
+                    let page_num = page_num + 1;
                     // TODO: Multiple things to know about >1 pages:
                     //  1. Each page holds 50 groups max.
                     //  2. They are all POST requests with a slightly differing body (ICState and
@@ -96,13 +116,6 @@ where
                     //     seem to enable the next page to return the correct result. I'm either
                     //     missing some minute detail in the request or I need to send more phony
                     //     requests prior.
-
-                    // async recursion is a little funky and would require me to pull in the
-                    // `async-recursion` crate. It's better off with a little mutation.
-                    page_num += 1;
-                }
-                _ => {
-                    todo!();
                 }
             }
         }
@@ -117,7 +130,35 @@ impl Token {
     where
         T: Connect + Clone + Send + Sync + 'static,
     {
-        let response = client.get(Uri::from_static(TOKEN_URL)).await?;
+        // TODO: need to follow redirect returned by this URL, two ways to do this:
+        //  1. Make a loop and do some magic, hopefully it works.
+        //  2. Go to 1st redirect.
+        //  3. Just use reqwest.
+        let response = client
+            .request(
+                Request::builder()
+                    .uri(TOKEN1_URL)
+                    .header(header::USER_AGENT, USER_AGENT)
+                    // TODO: may or may not need the httponly and path cookies
+                    .body(Body::empty())?,
+            )
+            .await?;
+        let response = client
+            .request(
+                Request::builder()
+                    .uri(TOKEN2_URL)
+                    .header(header::USER_AGENT, USER_AGENT)
+                    .header(
+                        header::COOKIE,
+                        Token::token_cookie(response.headers())
+                            .ok_or(SessionError::TokenCookieNotFound)?
+                            .to_string(),
+                    )
+                    // TODO: may or may not need the httponly and path cookies
+                    .body(Body::empty())?,
+            )
+            .await?;
+
         Ok(Self(
             Token::token_cookie(response.headers())
                 .ok_or(SessionError::TokenCookieNotFound)?
@@ -131,7 +172,7 @@ impl Token {
 
     fn token_cookie(headers: &HeaderMap) -> Option<Cookie<'_>> {
         headers
-            .get_all(header::COOKIE)
+            .get_all(header::SET_COOKIE)
             .iter()
             // TODO: collect errors and return them if no cookie was found
             // If it can't be parsed then skip it
@@ -143,24 +184,6 @@ impl Token {
             })
             .find(|cookie| cookie.name() == TOKEN_COOKIE_NAME)
     }
-}
-
-#[inline]
-fn get_with_token<T>(
-    client: &Client<T, Body>,
-    token: &str,
-    // TODO: Into<Uri>
-    uri: &'static str,
-) -> Result<ResponseFuture, SessionError>
-where
-    T: Connect + Clone + Send + Sync + 'static,
-{
-    Ok(client.request(
-        Request::builder()
-            .uri(Uri::from_static(uri))
-            .header(header::COOKIE, token)
-            .body(Body::empty())?,
-    ))
 }
 
 /// Represents errors that can occur retrieving course data.
