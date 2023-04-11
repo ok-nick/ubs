@@ -6,7 +6,7 @@ pub use course::Course;
 pub use parser::{Class, ClassGroup, ClassSchedule, ClassType, ParseError};
 pub use session::{Session, SessionError, Token};
 
-use futures::{TryStream, TryStreamExt};
+use futures::{StreamExt, TryStream, TryStreamExt};
 use hyper::Client;
 use hyper_rustls::HttpsConnectorBuilder;
 use thiserror::Error;
@@ -29,7 +29,8 @@ pub async fn schedule_iter(
     let token = Token::new(&client).await?;
     Ok(Session::new(client, &token)
         .schedule_iter(course)
-        .map_ok(|bytes| ClassSchedule::new(bytes, 0)))
+        // TODO: set page accordingly. Ideally, the schedule should be able to figure it out itself
+        .map_ok(|bytes| ClassSchedule::new(bytes.into(), 1)))
 }
 
 #[derive(Debug, Error)]
