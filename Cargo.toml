@@ -1,29 +1,8 @@
-[package]
-name = "ubs"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = ["ubs", "ubs-lib"]
 
-[dependencies]
-tl = "0.7.7"
-hyper = { version = "0.14.25", features = ["client", "http1"] }
-cookie = "0.17.0"
-futures = "0.3.27"
-chrono = "0.4.24"
-thiserror = "1.0.40"
-regex = "1.7.1"
-
-# hyper-rustls = { version = "0.23.2", optional = true }
-hyper-rustls = { version = "0.23.2" }
-
-[dev-dependencies]
-tokio = { version = "1.26.0", features = [
-    "rt",
-    "macros",
-], default-features = false }
-
-[features]
-# Enables SIMD accelerated parsing for HTML (requires nightly)
-simd = ["tl/simd"]
-# Enables easy HTTPS client creation
-# TODO: remove http1 feature from hyper main dep
-# client = ["hyper-rustls", "hyper/http1"]
+[workspace.package]
+authors = ["ok-nick <nick.libraries@gmail.com>"]
+description = "University at Buffalo Schedule; a library for fetching class schedules in real-time"
+repository = "https://github.com/ok-nick/ubs"
+license = "MIT"
