@@ -1,9 +1,9 @@
 use futures::TryStreamExt;
-use ubs::Course;
+use ubs_lib::Course;
 
 #[tokio::test]
-async fn schedule_iter() -> Result<(), ubs::Error> {
-    let mut schedule_iter = ubs::schedule_iter(Course::Cse115).await?;
+async fn schedule_iter() -> Result<(), ubs_lib::Error> {
+    let mut schedule_iter = ubs_lib::schedule_iter(Course::Cse115).await?;
 
     #[allow(clippy::never_loop)] // TODO: temp
     while let Some(schedule) = schedule_iter.try_next().await? {

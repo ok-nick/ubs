@@ -39,6 +39,7 @@ const INSTRUCTOR_TAG_SERIES: [u32; 3] = [86, 161, 162];
 // Second is the class group index ((page * 50) - 1)
 const SEATS_TAG_PARTS: [&str; 2] = ["SSR_CLSRCH_F_WK_SSR_DESCR50_", "$"];
 
+// TODO: I can supply more information, like course description, units, etc.
 #[derive(Debug)]
 pub struct ClassSchedule {
     dom: VDomGuard,
