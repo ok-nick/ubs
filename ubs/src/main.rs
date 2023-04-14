@@ -1,7 +1,6 @@
 use clap::Parser;
 use futures::TryStreamExt;
 use options::Options;
-use ubs_lib::Query;
 
 use crate::{find::normalize, model::ClassSchedule, options::DataFormat};
 
@@ -19,13 +18,11 @@ async fn main() -> Result<(), ubs_lib::Error> {
     let semester = normalize(&args.semester);
     let career = normalize(&args.career);
 
-    let query = Query::new(
+    let mut schedule_iter = ubs_lib::schedule_iter(
         find::find_course(&course),
         find::find_semester(&semester),
         find::find_career(&career),
-    );
-
-    let mut schedule_iter = ubs_lib::schedule_iter(&query).await?;
+    ).await?;
     let mut schedules = Vec::new();
 
     #[allow(clippy::never_loop)] // TODO: temp

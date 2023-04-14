@@ -21,8 +21,11 @@ use ubs_lib::{Career, Course, Semester};
 
 #[tokio::main]
 async fn main() -> Result<(), ubs_lib::Error> {
-    let query = Query::new(Course::Cse115, Semester::Spring2023, Career::Undergraduate);
-    let mut schedule_iter = ubs_lib::schedule_iter(&query).await?;
+    let mut schedule_iter = ubs_lib::schedule_iter(
+        Course::Cse115,
+        Semester::Spring2023,
+        Career::Undergraduate
+    ).await?;
 
     while let Some(schedule) = schedule_iter.try_next().await? {
         for group in schedule?.group_iter() {

@@ -60,7 +60,7 @@ where
 {
     pub fn schedule_iter<'a>(
         &self,
-        query: &'a Query<'a>,
+        query: Query<'a>,
     ) -> impl TryStream<Ok = Bytes, Error = SessionError> + 'a {
         let client = self.client.clone();
         let token = self.token.clone();
@@ -71,6 +71,7 @@ where
                 // step in the iteration.
                 let client = client.clone();
                 let token = token.clone();
+                let query = query.clone(); // TODO: take query as an Arc?
                 // `async move` doesn't implement `Unpin`, thus it is necessary to manually pin it.
                 // TODO: simplify this
                 Box::pin(async move {
@@ -86,7 +87,7 @@ where
     async fn get_page(
         client: Client<T, Body>,
         token: Token,
-        query: &Query<'_>,
+        query: Query<'_>,
         page_num: u32,
     ) -> Result<ResponseFuture, SessionError> {
         loop {

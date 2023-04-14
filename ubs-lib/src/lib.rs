@@ -14,7 +14,9 @@ use thiserror::Error;
 // TODO: add feature in docs
 // #[cfg(feature = "client")]
 pub async fn schedule_iter<'a>(
-    query: &'a Query<'a>,
+    course: Course<'a>,
+    semester: Semester<'a>,
+    career: Career<'a>,
 ) -> Result<
     impl TryStream<Ok = Result<ClassSchedule, ParseError>, Error = SessionError> + 'a,
     SessionError,
@@ -28,7 +30,7 @@ pub async fn schedule_iter<'a>(
     );
     let token = Token::new(&client).await?;
     Ok(Session::new(client, token)
-        .schedule_iter(query)
+        .schedule_iter(Query::new(course, semester, career))
         // TODO: set page accordingly. Ideally, the schedule should be able to figure it out itself
         .map_ok(|bytes| ClassSchedule::new(bytes.into(), 1)))
 }
