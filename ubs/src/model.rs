@@ -29,7 +29,7 @@ pub struct Class {
 }
 
 impl TryFrom<ubs_lib::ClassSchedule> for ClassSchedule {
-    type Error = ubs_lib::Error;
+    type Error = ubs_lib::ParseError;
 
     fn try_from(schedule: ubs_lib::ClassSchedule) -> Result<Self, Self::Error> {
         let mut groups = Vec::new();
@@ -42,7 +42,7 @@ impl TryFrom<ubs_lib::ClassSchedule> for ClassSchedule {
 }
 
 impl TryFrom<ubs_lib::ClassGroup<'_>> for ClassGroup {
-    type Error = ubs_lib::Error;
+    type Error = ubs_lib::ParseError;
 
     fn try_from(group: ubs_lib::ClassGroup<'_>) -> Result<Self, Self::Error> {
         let mut classes = Vec::new();
@@ -61,7 +61,7 @@ impl TryFrom<ubs_lib::ClassGroup<'_>> for ClassGroup {
 }
 
 impl TryFrom<ubs_lib::Class<'_>> for Class {
-    type Error = ubs_lib::Error;
+    type Error = ubs_lib::ParseError;
 
     fn try_from(class: ubs_lib::Class<'_>) -> Result<Self, Self::Error> {
         Ok(Class {

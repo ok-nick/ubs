@@ -1,12 +1,12 @@
-mod course;
+mod ids;
 mod parser;
 mod session;
 
-pub use course::Course;
+pub use ids::{Career, Course, Semester};
 pub use parser::{Class, ClassGroup, ClassSchedule, ClassType, ParseError};
-pub use session::{Session, SessionError, Token};
+pub use session::{Query, Session, SessionError, Token};
 
-use futures::{StreamExt, TryStream, TryStreamExt};
+use futures::{TryStream, TryStreamExt};
 use hyper::Client;
 use hyper_rustls::HttpsConnectorBuilder;
 use thiserror::Error;
@@ -14,9 +14,9 @@ use thiserror::Error;
 // TODO: add feature in docs
 // #[cfg(feature = "client")]
 pub async fn schedule_iter(
-    course: Course,
+    query: Query<'_>,
 ) -> Result<
-    impl TryStream<Ok = Result<ClassSchedule, ParseError>, Error = SessionError>,
+    impl TryStream<Ok = Result<ClassSchedule, ParseError>, Error = SessionError> + '_,
     SessionError,
 > {
     let client = Client::builder().build(
@@ -28,7 +28,7 @@ pub async fn schedule_iter(
     );
     let token = Token::new(&client).await?;
     Ok(Session::new(client, &token)
-        .schedule_iter(course)
+        .schedule_iter(query)
         // TODO: set page accordingly. Ideally, the schedule should be able to figure it out itself
         .map_ok(|bytes| ClassSchedule::new(bytes.into(), 1)))
 }
@@ -36,7 +36,7 @@ pub async fn schedule_iter(
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("failed to connect to server")]
-    SessionError(#[from] SessionError),
+    ConnectionFailed(#[from] SessionError),
     #[error("failed to parse data")]
-    ParseError(#[from] ParseError),
+    ParsingFailed(#[from] ParseError),
 }

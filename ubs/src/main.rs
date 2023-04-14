@@ -1,10 +1,11 @@
 use clap::Parser;
 use futures::TryStreamExt;
 use options::Options;
-use ubs_lib::Course;
+use ubs_lib::Query;
 
-use crate::model::ClassSchedule;
+use crate::{find::normalize, model::ClassSchedule, options::DataFormat};
 
+mod find;
 mod model;
 mod options;
 
@@ -12,17 +13,18 @@ mod options;
 async fn main() -> Result<(), ubs_lib::Error> {
     let args = Options::parse();
 
-    // Normalize the string
-    let course: Course = args
-        .course
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect::<String>()
-        .to_uppercase()
-        .parse()
-        .unwrap(); // TODO: handle unwrap
+    // TODO: How much less ergonomic is it to store borrowed strings rather than owned? Is it worth
+    // storing owned?
+    let course = normalize(&args.course);
+    let semester = normalize(&args.semester);
+    let career = normalize(&args.career);
 
-    let mut schedule_iter = ubs_lib::schedule_iter(course).await?;
+    let mut schedule_iter = ubs_lib::schedule_iter(Query {
+        course: find::find_course(&course),
+        semester: find::find_semester(&semester),
+        career: find::find_career(&career),
+    })
+    .await?;
     let mut schedules = Vec::new();
 
     #[allow(clippy::never_loop)] // TODO: temp
@@ -31,9 +33,20 @@ async fn main() -> Result<(), ubs_lib::Error> {
         break; // TODO: for now since subsequent pages aren't implemented
     }
 
-    // TODO: since there's only 1 page for now
-    let json = serde_json::to_string(&schedules[0].groups).unwrap();
-    println!("{json}");
+    let result = match args.format {
+        // TODO: impl error type
+        DataFormat::Json => serde_json::to_string(&schedules).unwrap(),
+    };
+    println!("{result}");
 
     Ok(())
+}
+
+// TODO: reevaluate error typs and how they are structured
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("`ubs` encountered an error")]
+    UbsError(#[from] ubs_lib::Error),
+    #[error("failed to serialize JSON")]
+    JsonSerializeFailed(#[from] serde_json::Error),
 }
