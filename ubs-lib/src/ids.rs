@@ -25,7 +25,7 @@ pub enum Career<'a> {
 }
 
 impl<'a> Career<'a> {
-    pub fn id(self) -> &'a str {
+    pub(crate) fn id(&self) -> &'a str {
         match self {
             Career::Undergraduate => "UGRD",
             Career::Graduate => "GRAD",
@@ -39,7 +39,7 @@ impl<'a> Career<'a> {
 }
 
 impl<'a> Semester<'a> {
-    pub fn id(self) -> &'a str {
+    pub(crate) fn id(&self) -> &'a str {
         match self {
             Semester::Spring2023 => "2231",
             Semester::Summer2023 => "",
@@ -52,7 +52,7 @@ impl<'a> Semester<'a> {
 
 impl<'a> Course<'a> {
     // NOTE: I don't think there is any way to automatically gather course -> course ids?
-    pub fn id(self) -> &'a str {
+    pub(crate) fn id(&self) -> &'a str {
         match self {
             Course::Cse115 => "004544",
             Course::Raw(id) => id,

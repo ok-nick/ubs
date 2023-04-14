@@ -20,9 +20,6 @@ const USER_AGENT: &str = "ubs";
 const FAKE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_MAIN_FL.GBL?Page=SSR_CLSRCH_MAIN_FL&pslnkid=CS_S201605302223124733554248&ICAJAXTrf=true&ICAJAX=1&ICMDTarget=start&ICPanelControlStyle=%20pst_side1-fixed%20pst_panel-mode%20";
 const FAKE2_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_ES_FL.GBL?Page=SSR_CLSRCH_ES_FL&SEARCH_GROUP=SSR_CLASS_SEARCH_LFF&SEARCH_TEXT=gly%20105&ES_INST=UBFLO&ES_STRM=2231&ES_ADV=N&INVOKE_SEARCHAGAIN=PTSF_GBLSRCH_FLUID";
 const PAGE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CRSE_INFO_FL.GBL?Page=SSR_CRSE_INFO_FL&Page=SSR_CS_WRAP_FL&CRSE_OFFER_NBR=1&INSTITUTION=UBFLO&CRSE_ID={}&STRM={}&ACAD_CAREER=UGRD";
-// STRM = semester id
-// CRSE = course id
-// ACAD_CAREER = undergrad/grad/law/etc.
 
 const TOKEN1_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT";
 const TOKEN2_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT&";
@@ -31,22 +28,29 @@ const TOKEN_COOKIE_NAME: &str = "psprd-8083-PORTAL-PSJSESSIONID";
 // TODO: create builder?
 #[derive(Debug, Clone)]
 pub struct Query<'a> {
-    pub course: Course<'a>,
-    pub semester: Semester<'a>,
-    pub career: Career<'a>,
+    course: Course<'a>,
+    semester: Semester<'a>,
+    career: Career<'a>,
+}
+
+impl<'a> Query<'a> {
+    pub fn new(course: Course<'a>, semester: Semester<'a>, career: Career<'a>) -> Self {
+        Self {
+            course,
+            semester,
+            career,
+        }
+    }
 }
 
 pub struct Session<T> {
     client: Client<T, Body>,
-    token: Arc<str>,
+    token: Token,
 }
 
 impl<T> Session<T> {
-    pub fn new(client: Client<T, Body>, token: &Token) -> Self {
-        Self {
-            client,
-            token: Arc::from(token.to_string_cookie()),
-        }
+    pub fn new(client: Client<T, Body>, token: Token) -> Self {
+        Self { client, token }
     }
 }
 
@@ -54,11 +58,9 @@ impl<T> Session<T>
 where
     T: Connect + Clone + Send + Sync + 'static,
 {
-    // TODO: allow choosing semester, note that this may be another unique ID per, just like courses
-    // TODO: AsRef<str>
     pub fn schedule_iter<'a>(
         &self,
-        query: Query<'a>,
+        query: &'a Query<'a>,
     ) -> impl TryStream<Ok = Bytes, Error = SessionError> + 'a {
         let client = self.client.clone();
         let token = self.token.clone();
@@ -69,11 +71,10 @@ where
                 // step in the iteration.
                 let client = client.clone();
                 let token = token.clone();
-                let query = query.clone();
                 // `async move` doesn't implement `Unpin`, thus it is necessary to manually pin it.
                 // TODO: simplify this
                 Box::pin(async move {
-                    Ok(Self::get_page(&client, &token, query, page_num)
+                    Ok(Self::get_page(client, token, query, page_num)
                         .await?
                         .await?)
                 })
@@ -83,9 +84,9 @@ where
 
     // TODO: you MUST go page-by-page, otherwise it won't return the correct result?
     async fn get_page(
-        client: &Client<T, Body>,
-        token: &str,
-        query: Query<'_>,
+        client: Client<T, Body>,
+        token: Token,
+        query: &Query<'_>,
         page_num: u32,
     ) -> Result<ResponseFuture, SessionError> {
         loop {
@@ -96,7 +97,7 @@ where
                         .request(
                             Request::builder()
                                 .uri(FAKE1_URL)
-                                .header(header::COOKIE, token)
+                                .header(header::COOKIE, token.as_str())
                                 .body(Body::empty())?,
                         )
                         .await?;
@@ -104,16 +105,16 @@ where
                         .request(
                             Request::builder()
                                 .uri(FAKE2_URL)
-                                .header(header::COOKIE, token)
+                                .header(header::COOKIE, token.as_str())
                                 .body(Body::empty())?,
                         )
                         .await?;
                     let page = client.request(
                         Request::builder()
-                            // TODO: use macro instead of const
+                            // TODO: make this 
                             .uri(format!("https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CRSE_INFO_FL.GBL?Page=SSR_CRSE_INFO_FL&Page=SSR_CS_WRAP_FL&CRSE_OFFER_NBR=1&INSTITUTION=UBFLO&CRSE_ID={}&STRM={}&ACAD_CAREER={}", query.course.id(), query.semester.id(), query.career.id()))
                             .header(header::USER_AGENT, USER_AGENT)
-                            .header(header::COOKIE, token)
+                            .header(header::COOKIE, token.as_str())
                             .header(header::COOKIE, "HttpOnly")
                             .header(header::COOKIE, "Path=/")
                             .body(Body::empty())?,
@@ -141,7 +142,7 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct Token(Cookie<'static>);
+pub struct Token(Arc<str>);
 
 impl Token {
     pub async fn new<T>(client: &Client<T, Body>) -> Result<Self, SessionError>
@@ -177,15 +178,16 @@ impl Token {
             )
             .await?;
 
-        Ok(Self(
+        Ok(Self(Arc::from(
             Token::token_cookie(response.headers())
                 .ok_or(SessionError::TokenCookieNotFound)?
-                .into_owned(),
-        ))
+                .into_owned()
+                .to_string(),
+        )))
     }
 
-    fn to_string_cookie(&self) -> String {
-        self.0.to_string()
+    fn as_str(&self) -> &str {
+        &self.0
     }
 
     fn token_cookie(headers: &HeaderMap) -> Option<Cookie<'_>> {

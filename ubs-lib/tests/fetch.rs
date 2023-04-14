@@ -1,14 +1,10 @@
 use futures::TryStreamExt;
-use ubs_lib::{Career, Course, Semester, Query};
+use ubs_lib::{Career, Course, Query, Semester};
 
 #[tokio::test]
 async fn schedule_iter() -> Result<(), ubs_lib::Error> {
-    let mut schedule_iter = ubs_lib::schedule_iter(Query {
-        course: Course::Cse115,
-        semester: Semester::Spring2023,
-        career: Career::Undergraduate,
-    })
-    .await?;
+    let query = Query::new(Course::Cse115, Semester::Spring2023, Career::Undergraduate);
+    let mut schedule_iter = ubs_lib::schedule_iter(&query).await?;
 
     #[allow(clippy::never_loop)] // TODO: temp
     while let Some(schedule) = schedule_iter.try_next().await? {

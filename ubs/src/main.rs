@@ -19,12 +19,13 @@ async fn main() -> Result<(), ubs_lib::Error> {
     let semester = normalize(&args.semester);
     let career = normalize(&args.career);
 
-    let mut schedule_iter = ubs_lib::schedule_iter(Query {
-        course: find::find_course(&course),
-        semester: find::find_semester(&semester),
-        career: find::find_career(&career),
-    })
-    .await?;
+    let query = Query::new(
+        find::find_course(&course),
+        find::find_semester(&semester),
+        find::find_career(&career),
+    );
+
+    let mut schedule_iter = ubs_lib::schedule_iter(&query).await?;
     let mut schedules = Vec::new();
 
     #[allow(clippy::never_loop)] // TODO: temp
