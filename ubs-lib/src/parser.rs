@@ -13,7 +13,7 @@ const CLASSES_PER_GROUP: u32 = 3;
 // alternative to get around this limitation.
 
 // First is the class group index ((page * 50) - 1)
-const SESSION_FORMAT: &str = r"University (\d\d?) Week Session";
+const SESSION_FORMAT: &str = r"^University (\d\d?) Week Session$";
 macro_rules! SESSION_TAG {
     () => {
         "SSR_DER_CS_GRP_SESSION_CODE$215$${}"
@@ -22,7 +22,7 @@ macro_rules! SESSION_TAG {
 // First is class index in group (1-3)
 // Second is (294, 295, 296) depending on class index in group (1-3)
 // Third is the class group index ((page * 50) - 1)
-const CLASS_ID_FORMAT: &str = r"Class Nbr (\d+) - Section ([A-Z](?:\d?)+) ([A-Z]+)";
+const CLASS_ID_FORMAT: &str = r"^Class Nbr (\d+) - Section ([A-Z](?:\d?)+) ([A-Z]+)$";
 const CLASS_ID_TAG_SEQ: [u32; 3] = [294, 295, 296];
 macro_rules! CLASS_ID_TAG {
     () => {
@@ -66,7 +66,7 @@ macro_rules! INSTRUCTOR_TAG {
 }
 // First is class index in group (1-3)
 // Second is the class group index ((page * 50) - 1)
-const SEATS_FORMAT: &str = r"Open Seats (\d+) of (\d+)";
+const SEATS_FORMAT: &str = r"^Open Seats (\d+) of (\d+)$";
 macro_rules! SEATS_TAG {
     () => {
         "SSR_CLSRCH_F_WK_SSR_DESCR50_{}${}"

@@ -45,7 +45,7 @@ async fn main() -> Result<(), ubs_lib::Error> {
 The process involves sending a precisely tailored sequence of network requests directed towards the [target URL](https://www.pub.hub.buffalo.edu/). Upon receiving the requests, the resulting HTML is cached until the user requests specific information, at which point it is parsed to specification and the values are extracted using Regex.
 
 ### Could I use this library from other languages?
-Yes. While direct access to the core library may not be possible (yet), the library does provide a command-line interface (CLI) that can output data in the desired format.
+Yes. While direct access to the core library may not be possible from other languages (yet), the library does provide a command-line interface (CLI) that can output data in the desired format.
 
 ### How stable is this library?
 Sort of stable. While using this library, it's important to note that there is a possibility that the underlying API may change in the future. Therefore, it may not be advisable to depend on this library for critical code. However, the library does have a comprehensive continuous integration (CI) system that runs daily, catching potential issues early on. In the event that the API does change and `ubs` ceases to function properly, users are encouraged to report the issue so that it can be resolved.
