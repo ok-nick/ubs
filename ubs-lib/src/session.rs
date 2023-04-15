@@ -19,13 +19,14 @@ const USER_AGENT: &str = "ubs";
 // TODO: remove excess queries from url
 const FAKE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_MAIN_FL.GBL?Page=SSR_CLSRCH_MAIN_FL&pslnkid=CS_S201605302223124733554248&ICAJAXTrf=true&ICAJAX=1&ICMDTarget=start&ICPanelControlStyle=%20pst_side1-fixed%20pst_panel-mode%20";
 const FAKE2_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_ES_FL.GBL?Page=SSR_CLSRCH_ES_FL&SEARCH_GROUP=SSR_CLASS_SEARCH_LFF&SEARCH_TEXT=gly%20105&ES_INST=UBFLO&ES_STRM=2231&ES_ADV=N&INVOKE_SEARCHAGAIN=PTSF_GBLSRCH_FLUID";
-const PAGE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CRSE_INFO_FL.GBL?Page=SSR_CRSE_INFO_FL&Page=SSR_CS_WRAP_FL&CRSE_OFFER_NBR=1&INSTITUTION=UBFLO&CRSE_ID={}&STRM={}&ACAD_CAREER=UGRD";
+macro_rules! PAGE1_URL {
+    () => { "https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CRSE_INFO_FL.GBL?Page=SSR_CRSE_INFO_FL&Page=SSR_CS_WRAP_FL&CRSE_OFFER_NBR=1&INSTITUTION=UBFLO&CRSE_ID={}&STRM={}&ACAD_CAREER={}" };
+}
 
 const TOKEN1_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT";
 const TOKEN2_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT&";
 const TOKEN_COOKIE_NAME: &str = "psprd-8083-PORTAL-PSJSESSIONID";
 
-// TODO: create builder?
 #[derive(Debug, Clone)]
 pub struct Query<'a> {
     course: Course<'a>,
@@ -67,11 +68,12 @@ where
         stream::iter(1..)
             .then(move |page_num| {
                 // Cloning `client` and `token` above is to avoid having the closure live as long
-                // as `self`. Cloning again is necessary because new ownership is needed for a new
+                // as `self`. Cloning again is necessary because new ownership is needed for each
                 // step in the iteration.
                 let client = client.clone();
                 let token = token.clone();
                 let query = query.clone(); // TODO: take query as an Arc?
+
                 // `async move` doesn't implement `Unpin`, thus it is necessary to manually pin it.
                 // TODO: simplify this
                 Box::pin(async move {
@@ -112,8 +114,12 @@ where
                         .await?;
                     let page = client.request(
                         Request::builder()
-                            // TODO: make this 
-                            .uri(format!("https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CRSE_INFO_FL.GBL?Page=SSR_CRSE_INFO_FL&Page=SSR_CS_WRAP_FL&CRSE_OFFER_NBR=1&INSTITUTION=UBFLO&CRSE_ID={}&STRM={}&ACAD_CAREER={}", query.course.id(), query.semester.id(), query.career.id()))
+                            .uri(format!(
+                                PAGE1_URL!(),
+                                query.course.id(),
+                                query.semester.id(),
+                                query.career.id()
+                            ))
                             .header(header::USER_AGENT, USER_AGENT)
                             .header(header::COOKIE, token.as_str())
                             .header(header::COOKIE, "HttpOnly")
@@ -182,7 +188,6 @@ impl Token {
         Ok(Self(Arc::from(
             Token::token_cookie(response.headers())
                 .ok_or(SessionError::TokenCookieNotFound)?
-                .into_owned()
                 .to_string(),
         )))
     }

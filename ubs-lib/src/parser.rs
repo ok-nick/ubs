@@ -8,36 +8,70 @@ use tl::{Node, ParserOptions, VDom, VDomGuard};
 const CLASSES_PER_PAGE: u32 = 50;
 const CLASSES_PER_GROUP: u32 = 3;
 
-const DATES_FORMAT: &str = "%m/%d/%Y";
-
-// Rust does macro expansion before resolving consts, therefore I cannot embed `{}` directly
-// into the consts and use the `format!` macro.
+// Rust does macro expansion before resolving consts, thus I cannot embed `{}` directly
+// in consts and use the `format!` macro. Defining declarative macros via `macro_rules!` is an
+// alternative to get around this limitation.
 
 // First is the class group index ((page * 50) - 1)
-const SESSION_TAG_PARTS: [&str; 1] = ["SSR_DER_CS_GRP_SESSION_CODE$215$$"];
+const SESSION_FORMAT: &str = r"University (\d\d?) Week Session";
+macro_rules! SESSION_TAG {
+    () => {
+        "SSR_DER_CS_GRP_SESSION_CODE$215$${}"
+    };
+}
 // First is class index in group (1-3)
 // Second is (294, 295, 296) depending on class index in group (1-3)
 // Third is the class group index ((page * 50) - 1)
-const CLASS_ID_TAG_PARTS: [&str; 3] = ["SSR_CLSRCH_F_WK_SSR_CMPNT_DESCR_", "$", "$$"];
-const CLASS_ID_TAG_SERIES: [u32; 3] = [294, 295, 296];
+const CLASS_ID_FORMAT: &str = r"Class Nbr (\d+) - Section ([A-Z](?:\d?)+) ([A-Z]+)";
+const CLASS_ID_TAG_SEQ: [u32; 3] = [294, 295, 296];
+macro_rules! CLASS_ID_TAG {
+    () => {
+        "SSR_CLSRCH_F_WK_SSR_CMPNT_DESCR_{}${}$${}"
+    };
+}
 // First is the class group index ((page * 50) - 1)
-const DATES_TAG_PARTS: [&str; 1] = ["SSR_CLSRCH_F_WK_SSR_MTG_DT_LONG_1$88$$"];
+const DATES_TIME_FORMAT: &str = "%m/%d/%Y";
+macro_rules! DATES_TAG {
+    () => {
+        "SSR_CLSRCH_F_WK_SSR_MTG_DT_LONG_1$88$${}"
+    };
+}
 // First is class index in group (1-3)
 // Second is (134, 135, 154) depending on class index in group (1-3)
 // Third is the class group index ((page * 50) - 1)
-const DATETIME_TAG_PARTS: [&str; 3] = ["SSR_CLSRCH_F_WK_SSR_MTG_SCHED_L_", "$", "$$"];
-const DATETIME_TAG_SERIES: [u32; 3] = [134, 135, 154];
+const DATETIME_TIME_FORMAT: &str = "%-I:%M%p";
+const DATETIME_FORMAT: &str =
+    r"^((?:[A-Z][a-z]+\s)+)(\d?\d:\d\d(?:AM|PM)) to (\d?\d:\d\d(?:AM|PM))$";
+const DATETIME_TAG_SEQ: [u32; 3] = [134, 135, 154];
+macro_rules! DATETIME_TAG {
+    () => {
+        "SSR_CLSRCH_F_WK_SSR_MTG_SCHED_L_{}${}$${}"
+    };
+}
 // First is class index in group (1-3)
 // Second is the class group index ((page * 50) - 1)
-const ROOM_TAG_PARTS: [&str; 2] = ["SSR_CLSRCH_F_WK_SSR_MTG_LOC_LONG_", "$"];
+macro_rules! ROOM_TAG {
+    () => {
+        "SSR_CLSRCH_F_WK_SSR_MTG_LOC_LONG_{}${}"
+    };
+}
 // First is class index in group (1-3)
 // Second is (86, 161, 162) depending on class index in group (1-3)
 // Third is the class group index ((page * 50) - 1)
-const INSTRUCTOR_TAG_PARTS: [&str; 3] = ["SSR_CLSRCH_F_WK_SSR_INSTR_LONG_", "$", "$$"];
-const INSTRUCTOR_TAG_SERIES: [u32; 3] = [86, 161, 162];
+const INSTRUCTOR_TAG_SEQ: [u32; 3] = [86, 161, 162];
+macro_rules! INSTRUCTOR_TAG {
+    () => {
+        "SSR_CLSRCH_F_WK_SSR_INSTR_LONG_{}${}$${}"
+    };
+}
 // First is class index in group (1-3)
 // Second is the class group index ((page * 50) - 1)
-const SEATS_TAG_PARTS: [&str; 2] = ["SSR_CLSRCH_F_WK_SSR_DESCR50_", "$"];
+const SEATS_FORMAT: &str = r"Open Seats (\d+) of (\d+)";
+macro_rules! SEATS_TAG {
+    () => {
+        "SSR_CLSRCH_F_WK_SSR_DESCR50_{}${}"
+    };
+}
 
 // TODO: I can supply more information, like course description, units, etc.
 #[derive(Debug)]
@@ -90,12 +124,10 @@ impl<'a> ClassGroup<'a> {
     }
 
     pub fn session(&self) -> Result<u32, ParseError> {
-        let session = get_text_from_id_without_sub_nodes(
-            self.dom,
-            &format!("{}{}", SESSION_TAG_PARTS[0], self.group_num),
-        )?;
+        let session =
+            get_text_from_id_without_sub_nodes(self.dom, &format!(SESSION_TAG!(), self.group_num))?;
         // TODO: cleanup
-        let re = Regex::new(r"University (\d\d?) Week Session")
+        let re = Regex::new(SESSION_FORMAT)
             .unwrap()
             .captures(session)
             .unwrap();
@@ -111,10 +143,8 @@ impl<'a> ClassGroup<'a> {
     }
 
     fn dates(&self) -> Result<(NaiveDate, NaiveDate), ParseError> {
-        let dates = get_text_from_id_without_sub_nodes(
-            self.dom,
-            &format!("{}{}", DATES_TAG_PARTS[0], self.group_num),
-        )?;
+        let dates =
+            get_text_from_id_without_sub_nodes(self.dom, &format!(DATES_TAG!(), self.group_num))?;
 
         let mut split_dates = dates.split(" - ");
         // TODO: remove boilerplate, regex?
@@ -122,12 +152,12 @@ impl<'a> ClassGroup<'a> {
             NaiveDate::parse_from_str(
                 // TODO: more specific error type, here and below
                 split_dates.next().ok_or(ParseError::UnknownFormat)?,
-                DATES_FORMAT,
+                DATES_TIME_FORMAT,
             )
             .or(Err(ParseError::UnknownFormat))?,
             NaiveDate::parse_from_str(
                 split_dates.next().ok_or(ParseError::UnknownFormat)?,
-                DATES_FORMAT,
+                DATES_TIME_FORMAT,
             )
             .or(Err(ParseError::UnknownFormat))?,
         ))
@@ -176,14 +206,18 @@ impl Class<'_> {
     pub fn start_time(&self) -> Result<Option<NaiveTime>, ParseError> {
         // TODO: fix up
         self.datetime().map(|result| {
-            result.map(|datetime| NaiveTime::parse_from_str(&datetime.1, "%-I:%M%p").unwrap())
+            result.map(|datetime| {
+                NaiveTime::parse_from_str(&datetime.1, DATETIME_TIME_FORMAT).unwrap()
+            })
         })
     }
 
     pub fn end_time(&self) -> Result<Option<NaiveTime>, ParseError> {
         // TODO: fix boilerplate and unwrap
         self.datetime().map(|result| {
-            result.map(|datetime| NaiveTime::parse_from_str(&datetime.2, "%-I:%M%p").unwrap())
+            result.map(|datetime| {
+                NaiveTime::parse_from_str(&datetime.2, DATETIME_TIME_FORMAT).unwrap()
+            })
         })
     }
 
@@ -192,13 +226,7 @@ impl Class<'_> {
         // TODO: use regex to validate result
         get_text_from_id_without_sub_nodes(
             self.dom,
-            &format!(
-                "{}{}{}{}",
-                ROOM_TAG_PARTS[0],
-                self.class_num + 1,
-                ROOM_TAG_PARTS[1],
-                self.group_num
-            ),
+            &format!(ROOM_TAG!(), self.class_num + 1, self.group_num),
         )
     }
 
@@ -208,12 +236,9 @@ impl Class<'_> {
         get_text_from_id_without_sub_nodes(
             self.dom,
             &format!(
-                "{}{}{}{}{}{}",
-                INSTRUCTOR_TAG_PARTS[0],
+                INSTRUCTOR_TAG!(),
                 self.class_num + 1,
-                INSTRUCTOR_TAG_PARTS[1],
-                INSTRUCTOR_TAG_SERIES[self.class_num as usize],
-                INSTRUCTOR_TAG_PARTS[2],
+                INSTRUCTOR_TAG_SEQ[self.class_num as usize],
                 self.group_num
             ),
         )
@@ -231,18 +256,15 @@ impl Class<'_> {
         let class_info = get_text_from_id_without_sub_nodes(
             self.dom,
             &format!(
-                "{}{}{}{}{}{}",
-                CLASS_ID_TAG_PARTS[0],
+                CLASS_ID_TAG!(),
                 self.class_num + 1,
-                CLASS_ID_TAG_PARTS[1],
-                CLASS_ID_TAG_SERIES[self.class_num as usize],
-                CLASS_ID_TAG_PARTS[2],
+                CLASS_ID_TAG_SEQ[self.class_num as usize],
                 self.group_num
             ),
         )?;
 
         // TODO: fix up
-        let re = Regex::new(r"Class Nbr (\d+) - Section ([A-Z](?:\d?)+) ([A-Z]+)")
+        let re = Regex::new(CLASS_ID_FORMAT)
             .unwrap()
             .captures(class_info)
             .unwrap();
@@ -257,12 +279,9 @@ impl Class<'_> {
         get_node_from_id(
             self.dom,
             &format!(
-                "{}{}{}{}{}{}",
-                DATETIME_TAG_PARTS[0],
+                DATETIME_TAG!(),
                 self.class_num + 1,
-                DATETIME_TAG_PARTS[1],
-                DATETIME_TAG_SERIES[self.class_num as usize],
-                DATETIME_TAG_PARTS[2],
+                DATETIME_TAG_SEQ[self.class_num as usize],
                 self.group_num
             ),
         )
@@ -279,17 +298,11 @@ impl Class<'_> {
                     Cow::Borrowed(_) => Err(ParseError::UnknownFormat),
                     Cow::Owned(value) => {
                         // TODO: cleanup
-                        let re = Regex::new(
-                            r"^((?:[A-Z][a-z]+\s)+)(\d?\d:\d\d(?:AM|PM)) to (\d?\d:\d\d(?:AM|PM))$",
-                        )
-                        .unwrap()
-                        .captures(&value)
-                        .unwrap();
+                        let re = Regex::new(DATETIME_FORMAT)
+                            .unwrap()
+                            .captures(&value)
+                            .unwrap();
 
-                        // It's very inconvenient having to work with an owned `String` here, it
-                        // seems like a fundamental design constraint of `tl`'s internals. The only
-                        // other choice is to get the tag raw and try to regex the content, though
-                        // it wouldn't be as reliable.
                         Ok(Some((
                             re.get(1)
                                 .unwrap()
@@ -309,23 +322,14 @@ impl Class<'_> {
     fn seats(&self) -> Result<Option<(u32, u32)>, ParseError> {
         let seats = get_text_from_id_without_sub_nodes(
             self.dom,
-            &format!(
-                "{}{}{}{}",
-                SEATS_TAG_PARTS[0],
-                self.class_num + 1,
-                SEATS_TAG_PARTS[1],
-                self.group_num
-            ),
+            &format!(SEATS_TAG!(), self.class_num + 1, self.group_num),
         )?;
 
         match seats {
             "Closed" => Ok(None),
             _ => {
                 // TODO: fix up (constants and error types)
-                let re = Regex::new(r"Open Seats (\d+) of (\d+)")
-                    .unwrap()
-                    .captures(seats)
-                    .unwrap();
+                let re = Regex::new(SEATS_FORMAT).unwrap().captures(seats).unwrap();
 
                 Ok(Some((
                     re.get(1).unwrap().as_str().parse().unwrap(), // Open seats
