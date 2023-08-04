@@ -9,7 +9,7 @@
   </p>
 </div>
 
-`ubs` is a library designed to provide real-time access to University at Buffalo class schedules, offering a wealth of information on each class. This includes data on class openings, start and end dates and times, class types such as recitation, lab, lecture, and seminar, class ID and section number, room number, instructor name, the number of open and closed seats available for each class, and more.
+`ubs` is a library designed to provide real-time access to University at Buffalo class schedules, offering a wealth of information on each class. This includes: `class open/closed`, `start/end date`, `start/end time`, `class type`, `class id`, `section`, `room`, `instructor`, `seats open/closed`, etc.
 
 <img src="https://user-images.githubusercontent.com/25470747/258547882-2919f86f-c7e3-4349-95de-1390ce81190d.gif">
 
@@ -47,10 +47,10 @@ async fn main() -> Result<(), ubs_lib::Error> {
 The process involves sending a precisely tailored sequence of network requests directed towards the [target URL](https://www.pub.hub.buffalo.edu/). Upon receiving the requests, the resulting HTML is cached until the user requests specific information, at which point it is parsed to specification and the inner values are extracted using Regex.
 
 ### Could I use this library from other languages?
-Yes. While direct access to the core library may not be possible from other languages (yet), the library does provide a command-line interface (CLI) that can output data in the desired format.
+Yes. While direct access to the core library may not be possible from other languages (yet), the library does provide a command-line interface that can output data in the desired format.
 
 ### How stable is this library?
-Sort of stable. While using this library, it's important to note that there is a possibility that the underlying API may change in the future. Therefore, it may not be advisable to depend on this library for critical code. However, the library does have a comprehensive continuous integration (CI) system that runs daily, catching potential issues early on. In the event that the API does change and `ubs` ceases to function properly, users are encouraged to report the issue so that it can be resolved.
+Sort of stable. While using this library, it's important to note that there is a possibility that the underlying API may change in the future. Therefore, it may not be advisable to depend on this library for critical code. However, the library does have a comprehensive continuous integration system that runs daily, catching potential issues early on. In the event that the API does change and `ubs` ceases to function properly, users are encouraged to report the issue so that it can be resolved.
 
 ### Does this library operate on private information?
 No, this library operates exclusively on public information that is readily accessible to anyone. There are no proprietary or confidential data sources involved.
