@@ -16,6 +16,17 @@ use thiserror::Error;
 pub async fn schedule_iter<'a>(
     course: Course,
     semester: Semester,
+) -> Result<
+    impl TryStream<Ok = Result<ClassSchedule, ParseError>, Error = SessionError> + 'a,
+    SessionError,
+> {
+    let career = course.career().unwrap(); // TODO: error if not found
+    schedule_iter_with_career(course, semester, career).await
+}
+
+pub async fn schedule_iter_with_career<'a>(
+    course: Course,
+    semester: Semester,
     career: Career,
 ) -> Result<
     impl TryStream<Ok = Result<ClassSchedule, ParseError>, Error = SessionError> + 'a,

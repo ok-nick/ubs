@@ -24,7 +24,6 @@ async fn main() -> Result<(), ubs_lib::Error> {
     let mut schedule_iter = ubs_lib::schedule_iter(
         Course::Cse115,
         Semester::Spring2023,
-        Career::Undergraduate
     ).await?;
 
     while let Some(schedule) = schedule_iter.try_next().await? {
@@ -42,7 +41,7 @@ async fn main() -> Result<(), ubs_lib::Error> {
 ## FAQ
 
 ### How does it work?
-The process involves sending a precisely tailored sequence of network requests directed towards the [target URL](https://www.pub.hub.buffalo.edu/). Upon receiving the requests, the resulting HTML is cached until the user requests specific information, at which point it is parsed to specification and the values are extracted using Regex.
+The process involves sending a precisely tailored sequence of network requests directed towards the [target URL](https://www.pub.hub.buffalo.edu/). Upon receiving the requests, the resulting HTML is cached until the user requests specific information, at which point it is parsed to specification and the inner values are extracted using Regex.
 
 ### Could I use this library from other languages?
 Yes. While direct access to the core library may not be possible from other languages (yet), the library does provide a command-line interface (CLI) that can output data in the desired format.

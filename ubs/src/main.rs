@@ -42,7 +42,7 @@ async fn main() -> Result<(), ubs_lib::Error> {
     }
     .unwrap();
 
-    let mut schedule_iter = ubs_lib::schedule_iter(course, semester, career).await?;
+    let mut schedule_iter = ubs_lib::schedule_iter_with_career(course, semester, career).await?;
     let mut schedules = Vec::new();
 
     #[allow(clippy::never_loop)] // TODO: temp
