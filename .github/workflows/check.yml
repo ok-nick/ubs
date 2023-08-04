@@ -14,6 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: switch to nightly toolchain
+        run: rustup default nightly
+
       - name: clippy
         run: cargo clippy --all-features
         env:
@@ -23,6 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      - name: switch to nightly toolchain
+        run: rustup default nightly
 
       - name: rustfmt
         run: cargo fmt --all -- --check
