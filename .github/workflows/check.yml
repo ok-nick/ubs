@@ -1,3 +1,26 @@
 name: check
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "**.rs"
+  pull_request:
+    paths:
+      - "**.rs"
 
-# TODO: run the unit tests daily
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: clippy
+        run: cargo clippy --all-features -Dwarnings
+  
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: rustfmt
+        run: cargo fmt --all -- --check
