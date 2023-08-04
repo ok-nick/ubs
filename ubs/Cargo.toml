@@ -1,8 +1,8 @@
 [package]
 name = "ubs"
 version = "0.1.0"
-edition = "2021"
 
+edition.workspace = true
 authors.workspace = true
 license.workspace = true
 description.workspace = true
