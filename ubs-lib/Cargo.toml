@@ -10,18 +10,18 @@ repository.workspace = true
 
 [dependencies]
 tl = "0.7.7"
-hyper = { version = "0.14.26", features = ["client", "http1"] }
+hyper = { version = "0.14.27", features = ["client", "http1"] }
 cookie = "0.17.0"
 futures = "0.3.28"
-chrono = "0.4.24"
-thiserror = "1.0.40"
-regex = "1.7.3"
+chrono = "0.4.26"
+thiserror = "1.0.44"
+regex = "1.9.1"
 
 # hyper-rustls = { version = "0.23.2", optional = true }
-hyper-rustls = { version = "0.24.0" }
+hyper-rustls = { version = "0.24.1" }
 
 [dev-dependencies]
-tokio = { version = "1.27.0", features = [
+tokio = { version = "1.29.0", features = [
     "rt",
     "macros",
 ], default-features = false }
