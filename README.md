@@ -9,10 +9,12 @@
   </p>
 </div>
 
+`ubs` is a library designed to provide real-time access to University at Buffalo class schedules, offering a wealth of information on each class. This includes data on class openings, start and end dates and times, class types such as recitation, lab, lecture, and seminar, class ID and section number, room number, instructor name, the number of open and closed seats available for each class, and more.
+
+<img src="https://user-images.githubusercontent.com/25470747/258547882-2919f86f-c7e3-4349-95de-1390ce81190d.gif">
+
 > **Warning**
 > This library is still a work in progress. Do not expect full functionality.
-
-`ubs` is a library designed to provide real-time access to University at Buffalo (UB) class schedules, offering a wealth of information on each class. This includes data on class openings, start and end dates and times, class types such as recitation, lab, lecture, and seminar, class ID and section number, room number, instructor name, and even the number of open and closed seats available for each class.
 
 ## Examples
 Below is a snippet of using the high-level API with [tokio](https://github.com/tokio-rs/tokio) for fetching live class information.
