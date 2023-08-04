@@ -82,7 +82,7 @@ where
             .and_then(|response| Box::pin(body::to_bytes(response.into_body()).err_into()))
     }
 
-    async fn load_fakes() {}
+    // async fn load_fakes() {}
 
     // TODO: you MUST go page-by-page, otherwise it won't return the correct result?
     async fn get_page(
@@ -132,7 +132,7 @@ where
                 }
                 _ => {
                     // The second page has an `ICState` of 3.
-                    let page_num = page_num + 1;
+                    let _page_num = page_num + 1;
                     // TODO: Multiple things to know about >1 pages:
                     //  1. Each page holds 50 groups max.
                     //  2. They are all POST requests with a slightly differing body (ICState and
