@@ -5,6 +5,8 @@ use regex::Regex;
 use thiserror::Error;
 use tl::{Node, ParserOptions, VDom, VDomGuard};
 
+use crate::Semester;
+
 const CLASSES_PER_PAGE: u32 = 50;
 const CLASSES_PER_GROUP: u32 = 3;
 
@@ -80,13 +82,17 @@ pub struct ClassSchedule {
     page: u32,
 }
 
-// TODO: search for TERM_VAL_TBL_DESCR to get "Spring 2023"
 impl ClassSchedule {
     pub fn new(bytes: Vec<u8>, page: u32) -> Result<Self, ParseError> {
-        // TODO: consider enabling tracking for perf and the Arc isn't too pretty
+        // TODO: consider enabling tracking for perf
         let dom = unsafe { tl::parse_owned(String::from_utf8(bytes)?, ParserOptions::default())? };
 
         Ok(Self { dom, page })
+    }
+
+    pub fn semester(&self) -> Semester {
+        // TODO: search for TERM_VAL_TBL_DESCR to get "Spring 2023"
+        todo!()
     }
 
     pub fn group_iter(&self) -> impl Iterator<Item = ClassGroup<'_>> + '_ {
@@ -117,10 +123,18 @@ impl<'a> ClassGroup<'a> {
         })
     }
 
-    // TODO: get `win6divUB_SR_FL_WRK_HTMLAREA1$5` and retrieve sub-node
-    // Or get element of class ps-box-value and use its inner text
     pub fn is_open(&self) -> Result<bool, ParseError> {
-        todo!()
+        for i in 1..=3 {
+            let seats = get_text_from_id_without_sub_nodes(
+                self.dom,
+                &format!(SEATS_TAG!(), i, self.group_num),
+            )?;
+            if seats == "Closed" {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     pub fn session(&self) -> Result<u32, ParseError> {
