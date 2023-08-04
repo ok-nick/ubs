@@ -13,6 +13,10 @@ pub struct Options {
     /// Format to output data
     #[clap(long, value_enum, default_value_t = DataFormat::Json)]
     pub format: DataFormat,
+    /// Pretty print output format
+    #[clap(long)]
+    pub pretty: bool,
+    /// Arguments that don't infer value, rather use the raw id
     #[clap(long, num_args = 1)]
     pub raw: Vec<Raw>,
 }

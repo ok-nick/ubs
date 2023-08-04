@@ -53,7 +53,10 @@ async fn main() -> Result<(), ubs_lib::Error> {
 
     let result = match args.format {
         // TODO: impl error type
-        DataFormat::Json => serde_json::to_string(&schedules).unwrap(),
+        DataFormat::Json => match args.pretty {
+            true => serde_json::to_string_pretty(&schedules).unwrap(),
+            false => serde_json::to_string(&schedules).unwrap(),
+        },
     };
     println!("{result}");
 
