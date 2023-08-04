@@ -28,14 +28,14 @@ const TOKEN2_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/S
 const TOKEN_COOKIE_NAME: &str = "psprd-8083-PORTAL-PSJSESSIONID";
 
 #[derive(Debug, Clone)]
-pub struct Query<'a> {
-    course: Course<'a>,
-    semester: Semester<'a>,
-    career: Career<'a>,
+pub struct Query {
+    course: Course,
+    semester: Semester,
+    career: Career,
 }
 
-impl<'a> Query<'a> {
-    pub fn new(course: Course<'a>, semester: Semester<'a>, career: Career<'a>) -> Self {
+impl Query {
+    pub fn new(course: Course, semester: Semester, career: Career) -> Self {
         Self {
             course,
             semester,
@@ -59,10 +59,7 @@ impl<T> Session<T>
 where
     T: Connect + Clone + Send + Sync + 'static,
 {
-    pub fn schedule_iter<'a>(
-        &self,
-        query: Query<'a>,
-    ) -> impl TryStream<Ok = Bytes, Error = SessionError> + 'a {
+    pub fn schedule_iter(&self, query: Query) -> impl TryStream<Ok = Bytes, Error = SessionError> {
         let client = self.client.clone();
         let token = self.token.clone();
         stream::iter(1..)
@@ -85,16 +82,19 @@ where
             .and_then(|response| Box::pin(body::to_bytes(response.into_body()).err_into()))
     }
 
+    async fn load_fakes() {}
+
     // TODO: you MUST go page-by-page, otherwise it won't return the correct result?
     async fn get_page(
         client: Client<T, Body>,
         token: Token,
-        query: Query<'_>,
+        query: Query,
         page_num: u32,
     ) -> Result<ResponseFuture, SessionError> {
         loop {
             match page_num {
                 1 => {
+                    // TODO: I can separate the "get_page" functionality from the fake url
                     // TODO: fix boilerplate
                     client
                         .request(

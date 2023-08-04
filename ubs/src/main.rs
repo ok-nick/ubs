@@ -1,10 +1,15 @@
+use std::str::FromStr;
+
 use clap::Parser;
 use futures::TryStreamExt;
 use options::Options;
+use ubs_lib::{Career, Course, Semester};
 
-use crate::{find::normalize, model::ClassSchedule, options::DataFormat};
+use crate::{
+    model::ClassSchedule,
+    options::{DataFormat, Raw},
+};
 
-mod find;
 mod model;
 mod options;
 
@@ -12,17 +17,32 @@ mod options;
 async fn main() -> Result<(), ubs_lib::Error> {
     let args = Options::parse();
 
-    // TODO: How much less ergonomic is it to store borrowed strings rather than owned? Is it worth
-    // storing owned?
-    let course = normalize(&args.course);
-    let semester = normalize(&args.semester);
-    let career = normalize(&args.career);
+    // TODO: handle errors
+    let course = if args.raw.contains(&Raw::Course) {
+        Ok(Course::Raw(args.course))
+    } else {
+        Course::from_str(&args.course)
+    }
+    .unwrap();
+    let semester = if args.raw.contains(&Raw::Semester) {
+        Ok(Semester::Raw(args.semester))
+    } else {
+        Semester::from_str(&args.semester)
+    }
+    .unwrap();
+    let career = if args.raw.contains(&Raw::Career) {
+        // TODO: error if doesn't exist
+        Ok(Career::Raw(args.career.unwrap()))
+    } else {
+        match course.career() {
+            Some(career) => Ok(career),
+            // TODO: same here
+            None => Career::from_str(&args.career.unwrap()),
+        }
+    }
+    .unwrap();
 
-    let mut schedule_iter = ubs_lib::schedule_iter(
-        find::find_course(&course),
-        find::find_semester(&semester),
-        find::find_career(&career),
-    ).await?;
+    let mut schedule_iter = ubs_lib::schedule_iter(course, semester, career).await?;
     let mut schedules = Vec::new();
 
     #[allow(clippy::never_loop)] // TODO: temp

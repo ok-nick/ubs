@@ -14,9 +14,9 @@ use thiserror::Error;
 // TODO: add feature in docs
 // #[cfg(feature = "client")]
 pub async fn schedule_iter<'a>(
-    course: Course<'a>,
-    semester: Semester<'a>,
-    career: Career<'a>,
+    course: Course,
+    semester: Semester,
+    career: Career,
 ) -> Result<
     impl TryStream<Ok = Result<ClassSchedule, ParseError>, Error = SessionError> + 'a,
     SessionError,

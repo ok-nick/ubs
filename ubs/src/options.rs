@@ -9,13 +9,22 @@ pub struct Options {
     pub semester: String,
     /// Career to query (e.g Undergraduate, Graduate, Law, DentalMedicine, Medicine, Pharmacy) or
     /// career id (e.g. SDM)
-    pub career: String,
+    pub career: Option<String>,
     /// Format to output data
     #[clap(long, value_enum, default_value_t = DataFormat::Json)]
     pub format: DataFormat,
+    #[clap(long, num_args = 1)]
+    pub raw: Vec<Raw>,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
 pub enum DataFormat {
     Json,
+}
+
+#[derive(Debug, Clone, ValueEnum, PartialEq, Eq)]
+pub enum Raw {
+    Course,
+    Semester,
+    Career,
 }
