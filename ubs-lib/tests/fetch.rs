@@ -1,38 +1,31 @@
 use futures::TryStreamExt;
-use ubs_lib::{Career, Course, Semester};
+use ubs_lib::{Course, Semester};
 
 #[tokio::test]
 async fn schedule_iter() -> Result<(), ubs_lib::Error> {
-    let mut schedule_iter =
-        ubs_lib::schedule_iter(Course::Cse115, Semester::Spring2023, Career::Undergraduate).await?;
+    let mut schedule_iter = ubs_lib::schedule_iter(Course::Cse115, Semester::Spring2023).await?;
 
     #[allow(clippy::never_loop)] // TODO: temp
     while let Some(schedule) = schedule_iter.try_next().await? {
         for group in schedule?.group_iter() {
-            println!(
-                // TODO: group.is_open()
-                "{} | {} | {}",
-                group.session()?,
-                group.start_date()?,
-                group.end_date()?
-            );
+            println!("Open: {}", group.is_open()?);
+            println!("Session: {}", group.session()?);
+            println!("Start Date: {}", group.start_date()?);
+            println!("End Date: {}", group.end_date()?);
+            println!();
             for class in group.class_iter() {
-                println!(
-                    "{} | {} | {} | {:?} | {:?} | {:?} | {} | {} | {:?} | {:?}",
-                    class.class_type()?,
-                    class.class_id()?,
-                    class.section()?,
-                    class.days_of_week()?,
-                    class.start_time()?,
-                    class.end_time()?,
-                    class.room()?,
-                    class.instructor()?,
-                    class.open_seats()?,
-                    class.total_seats()?,
-                );
+                println!("Id: {}", class.class_type()?);
+                println!("Section: {}", class.section()?);
+                println!("Days of Week: {:?}", class.days_of_week()?);
+                println!("Start Time: {:?}", class.start_time()?);
+                println!("End Time: {:?}", class.end_time()?);
+                println!("Room: {}", class.room()?);
+                println!("Insturctor: {}", class.instructor()?);
+                println!("Open Seats: {:?}", class.open_seats()?);
+                println!("Total Seats: {:?}", class.total_seats()?);
+                println!();
             }
-
-            println!("");
+            println!();
         }
 
         break; // TODO: for now since subsequent pages aren't implemented
