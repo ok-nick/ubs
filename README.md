@@ -2,7 +2,8 @@
   <h1><code>ubs</code></h1>
   <p><strong>University at Buffalo Schedule</strong></p>
   <p>
-    <a href="https://docs.rs/ubs/0.0.0/ubs/"><img src="https://img.shields.io/readthedocs/ubs" alt="docs" /></a>
+    <a href="https://github.com/ok-nick/ubs/actions?query=workflow"><img src="https://github.com/ok-nick/ubs/workflows/test/badge.svg" alt="test" /></a>
+    <a href="https://docs.rs/ubs/latest/ubs/"><img src="https://img.shields.io/readthedocs/ubs" alt="docs" /></a>
     <a href="https://crates.io/crates/ubs"><img src="https://img.shields.io/crates/v/ubs" alt="crates" /></a>
     <a href="https://discord.gg/w9Bc6xH7uC"><img src="https://img.shields.io/discord/834969350061424660?label=discord" alt="discord" /></a>
   </p>
