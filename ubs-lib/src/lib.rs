@@ -28,7 +28,6 @@ use session::{Query, Session, SessionError, Token};
 
 use futures::{TryStream, TryStreamExt};
 use hyper::Client;
-use hyper_rustls::HttpsConnectorBuilder;
 
 /// Iterator over each page of the specified query.
 ///
@@ -36,6 +35,7 @@ use hyper_rustls::HttpsConnectorBuilder;
 /// will return [`ScheduleError::FailedToInferCareer`](ScheduleError::FailedToInferCareer).
 /// In that case, consider manually specifying the career via [`schedule_iter_with_career`](schedule_iter_with_career),
 /// and sending a PR to add the inference.
+#[cfg(feature = "rustls")]
 pub async fn schedule_iter<'a>(
     course: Course,
     semester: Semester,
@@ -54,6 +54,7 @@ pub async fn schedule_iter<'a>(
 /// Note that in some cases the career cannot be inferred from the course, thus it
 /// is necessary to manually specify the career. Considering sending a PR with the
 /// course to career mapping.
+#[cfg(feature = "rustls")]
 pub async fn schedule_iter_with_career<'a>(
     course: Course,
     semester: Semester,
@@ -63,7 +64,7 @@ pub async fn schedule_iter_with_career<'a>(
     ScheduleError,
 > {
     let client = Client::builder().build(
-        HttpsConnectorBuilder::new()
+        hyper_rustls::HttpsConnectorBuilder::new()
             .with_native_roots()
             .https_only()
             .enable_http1()

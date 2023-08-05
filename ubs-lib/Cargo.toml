@@ -10,25 +10,24 @@ repository.workspace = true
 
 [dependencies]
 tl = "0.7.7"
-hyper = { version = "0.14.27", features = ["client", "http1"] }
+hyper = { version = "0.14.27", features = ["client"] }
 cookie = "0.17.0"
 futures = "0.3.28"
 chrono = "0.4.26"
 thiserror = "1.0.44"
-regex = "1.9.1"
+regex = "1.9.2"
 
-# hyper-rustls = { version = "0.23.2", optional = true }
-hyper-rustls = { version = "0.24.1" }
+hyper-rustls = { version = "0.24.1", optional = true }
 
 [dev-dependencies]
-tokio = { version = "1.29.0", features = [
-    "rt",
-    "macros",
+tokio = { version = "1.29.1", features = [
+  "rt",
+  "macros",
 ], default-features = false }
 
 [features]
-# Enables SIMD accelerated parsing for HTML (requires nightly)
-# simd = ["tl/simd"]
-# Enables easy HTTPS client creation
-# TODO: remove http1 feature from hyper main dep
-# client = ["hyper-rustls", "hyper/http1"]
+default = ["rustls"]
+# Enables SIMD accelerated parsing for HTML (requires nightly).
+simd = ["tl/simd"]
+# Enables high-level schedule iterators using rustls for TLS.
+rustls = ["hyper-rustls"]

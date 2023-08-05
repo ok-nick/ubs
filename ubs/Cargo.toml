@@ -17,11 +17,13 @@ ubs-lib = { path = "../ubs-lib" } # TODO: temporary
 chrono = { version = "0.4.26", features = ["serde"] }
 futures = "0.3.28"
 tokio = { version = "1.29.1", features = [
-    "rt",
-    "macros",
+  "rt",
+  "macros",
 ], default-features = false }
+syntect = { version = "5.1.0", optional = true }
 # miette = { version = "5.10.0", features = ["fancy"] }
-syntect = {version = "5.0.0", optional = true}
 
 [features]
+default = ["color"]
+# Enables syntax highlighting when `--pretty` is specified.
 color = ["syntect"]

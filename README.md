@@ -13,9 +13,6 @@
 
 <img src="https://user-images.githubusercontent.com/25470747/258559272-32e79831-eda7-41b5-aba5-87c3d8fc363f.gif">
 
-> **Warning**
-> This library is still a work in progress. Do not expect full functionality.
-
 ## Examples
 Below is a snippet of using the high-level API with [tokio](https://github.com/tokio-rs/tokio) for fetching live class information.
 ```rust
