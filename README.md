@@ -11,7 +11,7 @@
 
 `ubs` is a library designed to provide real-time access to University at Buffalo class schedules, offering a wealth of information on each class. This includes: `class open/closed`, `start/end date`, `start/end time`, `class type`, `class id`, `section`, `room`, `instructor`, `seats open/closed`, etc.
 
-<img src="https://user-images.githubusercontent.com/25470747/258547882-2919f86f-c7e3-4349-95de-1390ce81190d.gif">
+<img src="https://user-images.githubusercontent.com/25470747/258559272-32e79831-eda7-41b5-aba5-87c3d8fc363f.gif">
 
 > **Warning**
 > This library is still a work in progress. Do not expect full functionality.
