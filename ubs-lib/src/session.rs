@@ -101,6 +101,7 @@ where
         query: Query,
         page_num: u32,
     ) -> Result<ResponseFuture, SessionError> {
+        #[allow(clippy::never_loop)] // TODO: tem
         loop {
             match page_num {
                 1 => {
@@ -152,6 +153,7 @@ where
                     //     seem to enable the next page to return the correct result. I'm either
                     //     missing some minute detail in the request or I need to send more phony
                     //     requests prior.
+                    return Err(SessionError::PagesNotImplemented);
                 }
             }
         }
@@ -243,4 +245,7 @@ pub enum SessionError {
     /// Could not find or parse the token cookie.
     #[error("could not find or parse the token cookie")]
     TokenCookieNotFound,
+    /// More than one page has not yet been implemented.
+    #[error("more than one page has not been implemented")]
+    PagesNotImplemented,
 }
