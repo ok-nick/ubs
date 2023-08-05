@@ -55,7 +55,10 @@ async fn main() -> Result<(), Error> {
     };
 
     #[cfg(feature = "color")]
-    let result = highlight_syntax(args.format, &result);
+    let result = match args.pretty {
+        true => highlight_syntax(args.format, &result),
+        false => result,
+    };
 
     println!("{result}");
 
