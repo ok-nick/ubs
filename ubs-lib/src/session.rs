@@ -27,6 +27,7 @@ const TOKEN1_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/S
 const TOKEN2_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT&";
 const TOKEN_COOKIE_NAME: &str = "psprd-8083-PORTAL-PSJSESSIONID";
 
+/// Information about the course query.
 #[derive(Debug, Clone)]
 pub struct Query {
     course: Course,
@@ -35,6 +36,7 @@ pub struct Query {
 }
 
 impl Query {
+    /// Construct a new [`Query`](Query).
     pub fn new(course: Course, semester: Semester, career: Career) -> Self {
         Self {
             course,
@@ -44,12 +46,14 @@ impl Query {
     }
 }
 
+/// Manages the session to the host server.
 pub struct Session<T> {
     client: Client<T, Body>,
     token: Token,
 }
 
 impl<T> Session<T> {
+    /// Construct a new [`Session`](Session).
     pub fn new(client: Client<T, Body>, token: Token) -> Self {
         Self { client, token }
     }
@@ -59,6 +63,7 @@ impl<T> Session<T>
 where
     T: Connect + Clone + Send + Sync + 'static,
 {
+    /// Iterate over pages of schedules with the specified [`Query`](Query).
     pub fn schedule_iter(&self, query: Query) -> impl TryStream<Ok = Bytes, Error = SessionError> {
         let client = self.client.clone();
         let token = self.token.clone();
@@ -85,6 +90,9 @@ where
     // async fn load_fakes() {}
 
     // TODO: you MUST go page-by-page, otherwise it won't return the correct result?
+    /// Get specific page for query.
+    ///
+    /// Note that this must be called incrementally, page-by-page.
     async fn get_page(
         client: Client<T, Body>,
         token: Token,
@@ -148,10 +156,12 @@ where
     }
 }
 
+/// Contains a unique identifier for the current session.
 #[derive(Debug, Clone)]
 pub struct Token(Arc<str>);
 
 impl Token {
+    /// Construct a new [`Token`](Token) with the specified [`Client`](Client).
     pub async fn new<T>(client: &Client<T, Body>) -> Result<Self, SessionError>
     where
         T: Connect + Clone + Send + Sync + 'static,
@@ -192,10 +202,12 @@ impl Token {
         )))
     }
 
+    /// Convert the token to its string form.
     fn as_str(&self) -> &str {
         &self.0
     }
 
+    /// Fetch the [`Cookie`](Cookie) object from the specified headers.
     fn token_cookie(headers: &HeaderMap) -> Option<Cookie<'_>> {
         headers
             .get_all(header::SET_COOKIE)
@@ -212,7 +224,7 @@ impl Token {
     }
 }
 
-/// Represents errors that can occur retrieving course data.
+/// Error while fetching course data.
 #[derive(Debug, Error)]
 pub enum SessionError {
     /// An argument to build the HTTP request was invalid.
@@ -222,7 +234,7 @@ pub enum SessionError {
     /// Failed to send HTTP request.
     #[error(transparent)]
     HttpRequestFailed(#[from] hyper::Error),
-    /// Attempted to parse a cookie with an invalid format.
+    /// Attempt to parse a cookie with an invalid format.
     #[error("could not parse cookie with an invalid format")]
     MalformedCookie(#[from] cookie::ParseError),
     // TODO: provide cookie parsing errors

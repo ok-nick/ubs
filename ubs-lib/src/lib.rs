@@ -10,8 +10,12 @@ use futures::{TryStream, TryStreamExt};
 use hyper::Client;
 use hyper_rustls::HttpsConnectorBuilder;
 
-// TODO: add feature in docs
-// #[cfg(feature = "client")]
+/// Iterator over each page of the specified query.
+///
+/// If there is no course to career mapping for the specified course, this function
+/// will return [`ScheduleError::FailedToInferCareer`](ScheduleError::FailedToInferCareer).
+/// In that case, consider manually specifying the career via [`schedule_iter_with_career`](schedule_iter_with_career),
+/// and sending a PR to add the inference.
 pub async fn schedule_iter<'a>(
     course: Course,
     semester: Semester,
@@ -25,6 +29,11 @@ pub async fn schedule_iter<'a>(
     schedule_iter_with_career(course, semester, career).await
 }
 
+/// iterator over each page of the specified query with an explicit career.
+///
+/// Note that in some cases the career cannot be inferred from the course, thus it
+/// is necessary to manually specify the career. Considering sending a PR with the
+/// course to career mapping.
 pub async fn schedule_iter_with_career<'a>(
     course: Course,
     semester: Semester,
@@ -47,12 +56,16 @@ pub async fn schedule_iter_with_career<'a>(
         .map_ok(|bytes| ClassSchedule::new(bytes.into(), 1)))
 }
 
+/// Error when iterating schedules.
 #[derive(Debug, thiserror::Error)]
 pub enum ScheduleError {
+    /// Failed to connect to host.
     #[error(transparent)]
     ConnectionFailed(#[from] SessionError),
+    /// Failed to parse data returned from host.
     #[error(transparent)]
     ParseFailed(#[from] ParseError),
+    /// Failed to infer career from course.
     #[error("failed to infer career from course `{0:?}`, consider passing it explicitly via `schedule_iter_with_career`")]
     FailedToInferCareer(Course),
 }

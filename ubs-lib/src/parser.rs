@@ -75,7 +75,8 @@ macro_rules! SEATS_TAG {
     };
 }
 
-// TODO: I can supply more information, like course description, units, etc.
+// TODO: I can supply more information, like class description, units, etc.
+/// Parser for raw class schedule data.
 #[derive(Debug)]
 pub struct ClassSchedule {
     dom: VDomGuard,
@@ -83,6 +84,7 @@ pub struct ClassSchedule {
 }
 
 impl ClassSchedule {
+    /// Construct a new [`ClassSchedule`](ClassSchedule) with the specified bytes at the specified page.
     pub fn new(bytes: Vec<u8>, page: u32) -> Result<Self, ParseError> {
         // TODO: consider enabling tracking for perf
         let dom = unsafe { tl::parse_owned(String::from_utf8(bytes)?, ParserOptions::default())? };
@@ -90,11 +92,16 @@ impl ClassSchedule {
         Ok(Self { dom, page })
     }
 
+    /// Get the semester for the schedule.
     pub fn semester(&self) -> Semester {
         // TODO: search for TERM_VAL_TBL_DESCR to get "Spring 2023"
         todo!()
     }
 
+    /// Iterator over groups of classes.
+    ///
+    /// In the catalog, classes are grouped in sets of 3 (usually)
+    /// which can only be selected together.
     pub fn group_iter(&self) -> impl Iterator<Item = ClassGroup<'_>> + '_ {
         // Every page contains the bytes of the previous pages
         let first_class_index = self.page.saturating_sub(1) * CLASSES_PER_PAGE;
@@ -108,6 +115,7 @@ impl ClassSchedule {
 }
 
 // TODO: Every lecture is paired with every possible combo of recs/labs, I can simplify this
+/// Parser for raw class group data.
 #[derive(Debug, Clone)]
 pub struct ClassGroup<'a> {
     dom: &'a VDom<'a>,
@@ -115,6 +123,7 @@ pub struct ClassGroup<'a> {
 }
 
 impl<'a> ClassGroup<'a> {
+    /// Iterator over classes in group.
     pub fn class_iter(&self) -> impl Iterator<Item = Class<'a>> + '_ {
         (0..CLASSES_PER_GROUP).map(|class_num| Class {
             dom: self.dom,
@@ -123,6 +132,7 @@ impl<'a> ClassGroup<'a> {
         })
     }
 
+    /// Get if the class group is open or closed.
     pub fn is_open(&self) -> Result<bool, ParseError> {
         for i in 1..=3 {
             let seats = get_text_from_id_without_sub_nodes(
@@ -137,6 +147,10 @@ impl<'a> ClassGroup<'a> {
         Ok(false)
     }
 
+    /// Get the current session of the class group.
+    ///
+    /// For instance, if the session is `University 15 Week Session`,
+    /// this function will return `15`.
     pub fn session(&self) -> Result<u32, ParseError> {
         let session =
             get_text_from_id_without_sub_nodes(self.dom, &format!(SESSION_TAG!(), self.group_num))?;
@@ -151,14 +165,17 @@ impl<'a> ClassGroup<'a> {
             .map_err(|_| ParseError::UnknownElementFormat)
     }
 
+    /// Get the start date of the class group.
     pub fn start_date(&self) -> Result<NaiveDate, ParseError> {
         Ok(self.dates()?.0)
     }
 
+    /// Get the end date of the class group.
     pub fn end_date(&self) -> Result<NaiveDate, ParseError> {
         Ok(self.dates()?.1)
     }
 
+    /// Get the start and end date of the class group.
     fn dates(&self) -> Result<(NaiveDate, NaiveDate), ParseError> {
         let dates =
             get_text_from_id_without_sub_nodes(self.dom, &format!(DATES_TAG!(), self.group_num))?;
@@ -181,6 +198,7 @@ impl<'a> ClassGroup<'a> {
 }
 
 // TODO: empty text will equal `&nbsp;`
+/// Parser for raw class data.
 #[derive(Debug, Clone)]
 pub struct Class<'a> {
     dom: &'a VDom<'a>,
@@ -189,21 +207,34 @@ pub struct Class<'a> {
 }
 
 impl Class<'_> {
+    /// Get the type of class.
+    ///
+    /// For instance, this function will return `Lecture`, `Seminar`,
+    /// `Lab`, `Recitation`.
     pub fn class_type(&self) -> Result<ClassType, ParseError> {
         self.class_info()
             .map(|info| info.2.parse().map_err(|_| ParseError::UnknownElementFormat))?
     }
 
+    /// Get id of this class.
+    ///
+    /// For instance, if the class says `Class Nbr 23229`, this function
+    /// will return `23229`.
     pub fn class_id(&self) -> Result<u32, ParseError> {
         self.class_info()
             .map(|info| info.0.parse().map_err(|_| ParseError::UnknownElementFormat))?
     }
 
+    /// Get the section of this class.
+    ///
+    /// For instance, if the class says `Section A5`, this function will
+    /// return `A5`.
     pub fn section(&self) -> Result<&str, ParseError> {
         self.class_info().map(|info| info.1)
     }
 
     // If the class is asynchronous a datetime doesn't exist.
+    /// Get the days of week this class is in action.
     pub fn days_of_week(&self) -> Result<Option<Vec<Result<DayOfWeek, ParseError>>>, ParseError> {
         self.datetime().map(|result| {
             result.map(|datetime| {
@@ -216,6 +247,7 @@ impl Class<'_> {
         })
     }
 
+    /// Get the start time of this class.
     pub fn start_time(&self) -> Result<Option<NaiveTime>, ParseError> {
         self.datetime()
             .map(|result| {
@@ -227,6 +259,7 @@ impl Class<'_> {
             .transpose()
     }
 
+    /// Get the end time of this class.
     pub fn end_time(&self) -> Result<Option<NaiveTime>, ParseError> {
         // TODO: fix boilerplate with above
         self.datetime()
@@ -240,6 +273,10 @@ impl Class<'_> {
     }
 
     // Sometimes it returns `Arr Arr`
+    /// Get the room and room number of this class.
+    ///
+    /// For instance, if the class says `Nsc 215`, this function will
+    /// return `Nsc 215`.
     pub fn room(&self) -> Result<&str, ParseError> {
         // TODO: use regex to validate result
         get_text_from_id_without_sub_nodes(
@@ -248,6 +285,11 @@ impl Class<'_> {
         )
     }
 
+    // TODO: specific error if the class says "To be Announced"
+    /// Get the name of the instructor.
+    ///
+    /// Note that sometimes the instructor doesn't exist and is labeled as
+    /// `To be Announced`. In that case, the function will error.
     pub fn instructor(&self) -> Result<&str, ParseError> {
         // Not much I can do in terms of validation. Some people have very unique patterns in their
         // names.
@@ -262,14 +304,24 @@ impl Class<'_> {
         )
     }
 
+    // TODO: specific error for closed class
+    /// Get the open seats for this class.
+    ///
+    /// Note that if the class is closed this function will error.
     pub fn open_seats(&self) -> Result<Option<u32>, ParseError> {
         self.seats().map(|seats| seats.map(|seats| seats.0))
     }
 
+    // TODO: ^
+    /// Get the total seats for this class.
+    ///
+    /// Note that if the class is closed this function will error.
     pub fn total_seats(&self) -> Result<Option<u32>, ParseError> {
         self.seats().map(|seats| seats.map(|seats| seats.1))
     }
 
+    /// Get various bits of information for this class in the form,
+    /// `(class_type, class_id, section)`.
     fn class_info(&self) -> Result<(&str, &str, &str), ParseError> {
         let class_info = get_text_from_id_without_sub_nodes(
             self.dom,
@@ -292,6 +344,8 @@ impl Class<'_> {
         ))
     }
 
+    /// Get various bits of information for this class dates in the form,
+    /// `(days_of_weeek, start_time, end_time)`.
     fn datetime(&self) -> Result<Option<(Vec<String>, String, String)>, ParseError> {
         get_node_from_id(
             self.dom,
@@ -341,6 +395,8 @@ impl Class<'_> {
         )
     }
 
+    /// Get various bits of information for this class seats in the form,
+    /// `(days_of_weeek, start_time, end_time)`.
     fn seats(&self) -> Result<Option<(u32, u32)>, ParseError> {
         let seats = get_text_from_id_without_sub_nodes(
             self.dom,
@@ -372,6 +428,7 @@ impl Class<'_> {
     }
 }
 
+/// Type of class.
 #[derive(Debug, Clone, Copy)]
 pub enum ClassType {
     Recitation,
@@ -409,6 +466,7 @@ impl Display for ClassType {
     }
 }
 
+/// Day of week.
 #[derive(Debug, Clone, Copy)]
 pub enum DayOfWeek {
     Sunday,
@@ -455,6 +513,7 @@ impl Display for DayOfWeek {
     }
 }
 
+// TODO: document
 fn get_text_from_id_without_sub_nodes<'a>(dom: &'a VDom, id: &str) -> Result<&'a str, ParseError> {
     match get_node_from_id(dom, id)?.inner_text(dom.parser()) {
         Cow::Borrowed(string) => Ok(string),
@@ -465,6 +524,7 @@ fn get_text_from_id_without_sub_nodes<'a>(dom: &'a VDom, id: &str) -> Result<&'a
     }
 }
 
+// TODO: ^
 fn get_node_from_id<'a>(dom: &'a VDom, id: &str) -> Result<&'a Node<'a>, ParseError> {
     Ok(dom
         .get_element_by_id(id)
@@ -474,6 +534,7 @@ fn get_node_from_id<'a>(dom: &'a VDom, id: &str) -> Result<&'a Node<'a>, ParseEr
         .unwrap())
 }
 
+/// Error when parsing schedule data.
 #[derive(Debug, Error)]
 pub enum ParseError {
     /// HTML is not valid Utf-8.

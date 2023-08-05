@@ -2,14 +2,20 @@ use std::str::FromStr;
 
 use thiserror::Error;
 
-// TODO: do more validation in FromStr
-
+/// An enum of available courses in the catalog.
+///
+/// If a course is missing, manually specify its id with [`Course::Raw`](Course::Raw) and
+/// consider sending a PR adding that mapping.
 #[derive(Debug, Clone)]
 pub enum Course {
     Cse115,
     Raw(String),
 }
 
+/// An enum of available semesters in the catalog.
+///
+/// If a semester is missing, manually specify its id with [`Semester::Raw`](Semester::Raw) and
+/// consider sending a PR adding that mapping.
 #[derive(Debug, Clone)]
 pub enum Semester {
     Spring2023,
@@ -19,6 +25,13 @@ pub enum Semester {
     Raw(String),
 }
 
+/// An enum of available careers in the catalog.
+///
+/// If a career is missing, manually specify its id with [`Career::Raw`](Career::Raw) and
+/// consider sending a PR adding that mapping.
+///
+/// Specifying the career is an internal implementation detail exposed by the backend
+/// network API. It doesn't make much sense to have, but nevertheless, it is required.
 #[derive(Debug, Clone)]
 pub enum Career {
     Undergraduate,
@@ -31,6 +44,10 @@ pub enum Career {
 }
 
 impl Course {
+    /// Infer the career from the course.
+    ///
+    /// Note that this isn't always possible because a mapping does not yet exist. In
+    /// that case, consider sending a PR adding the mapping.
     pub fn career(&self) -> Option<Career> {
         match self {
             Course::Cse115 => Some(Career::Undergraduate),
@@ -39,7 +56,7 @@ impl Course {
         }
     }
 
-    // NOTE: I don't think there is any way to automatically gather course -> course ids?
+    /// Internal id of the course.
     pub(crate) fn id(&self) -> &str {
         match self {
             Course::Cse115 => "004544",
@@ -64,6 +81,7 @@ impl FromStr for Course {
 }
 
 impl Semester {
+    /// Internal id of the semester.
     pub(crate) fn id(&self) -> &str {
         match self {
             Semester::Spring2023 => "2231",
@@ -93,6 +111,7 @@ impl FromStr for Semester {
 }
 
 impl Career {
+    /// Internal id of the career.
     pub(crate) fn id(&self) -> &str {
         match self {
             Career::Undergraduate => "UGRD",
@@ -125,6 +144,7 @@ impl FromStr for Career {
     }
 }
 
+/// Normalize the input string for use in [`FromStr`](std::str:FromStr) implementations.
 pub fn normalize(s: &str) -> String {
     s.chars()
         .filter(|c| !c.is_whitespace())
@@ -132,8 +152,12 @@ pub fn normalize(s: &str) -> String {
         .to_uppercase()
 }
 
+/// Error when parsing id.
 #[derive(Debug, Error)]
 pub enum ParseIdError {
+    /// Specified id could not be converted to enum.
+    ///
+    /// Considering using the `Raw` variant for specifying raw ids.
     #[error("`{given}` is an invalid `{id}``")]
     InvalidId { id: String, given: String },
 }

@@ -28,7 +28,7 @@ tokio = { version = "1.29.0", features = [
 
 [features]
 # Enables SIMD accelerated parsing for HTML (requires nightly)
-simd = ["tl/simd"]
+# simd = ["tl/simd"]
 # Enables easy HTTPS client creation
 # TODO: remove http1 feature from hyper main dep
 # client = ["hyper-rustls", "hyper/http1"]
