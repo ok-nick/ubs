@@ -1,6 +1,6 @@
 [package]
 name = "ubs-lib"
-version = "0.1.0"
+version = "0.1.1"
 description = "a library for fetching real-time University at Buffalo class schedules"
 documentation = "https://docs.rs/ubs-lib"
 
