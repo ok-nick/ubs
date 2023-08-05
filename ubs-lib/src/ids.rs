@@ -1,3 +1,5 @@
+//! Mappings of course/semester/career to internal ids.
+
 use std::str::FromStr;
 
 use thiserror::Error;
@@ -145,7 +147,7 @@ impl FromStr for Career {
 }
 
 /// Normalize the input string for use in [`FromStr`](std::str:FromStr) implementations.
-pub fn normalize(s: &str) -> String {
+fn normalize(s: &str) -> String {
     s.chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>()

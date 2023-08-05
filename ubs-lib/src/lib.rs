@@ -1,10 +1,30 @@
+//! # ubs
+//! `ubs` provides an interface for fetching real-time Univeristy at Buffalo class schedules.
+//! ## Iterating class schedules
+//! ```rust
+//! use ubs_lib::{Course, Semester};
+//!
+//! let mut schedule_iter = ubs_lib::schedule_iter(
+//!     Course::Cse115,
+//!     Semester::Spring2023,
+//! ).await?;
+//!
+//! while let Some(schedule) = schedule_iter.try_next().await? {
+//!     for group in schedule?.group_iter() {
+//!         for class in group.class_iter() {
+//!             // do stuff
+//!         }
+//!     }
+//! }
+//!```
+
 mod ids;
-mod parser;
-mod session;
+pub mod parser;
+pub mod session;
 
 pub use ids::{Career, Course, ParseIdError, Semester};
-pub use parser::{Class, ClassGroup, ClassSchedule, ClassType, ParseError};
-pub use session::{Query, Session, SessionError, Token};
+use parser::{ClassSchedule, ParseError};
+use session::{Query, Session, SessionError, Token};
 
 use futures::{TryStream, TryStreamExt};
 use hyper::Client;

@@ -1,3 +1,5 @@
+//! Low-level access to the schedule parser.
+
 use std::{borrow::Cow, fmt::Display, str::FromStr};
 
 use chrono::{NaiveDate, NaiveTime};

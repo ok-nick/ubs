@@ -5,6 +5,5 @@ resolver = "2"
 [workspace.package]
 edition = "2021"
 authors = ["ok-nick <nick.libraries@gmail.com>"]
-description = "University at Buffalo Schedule; a library for fetching class schedules in real-time"
 repository = "https://github.com/ok-nick/ubs"
 license = "MIT"

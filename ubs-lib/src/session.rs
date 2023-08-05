@@ -1,3 +1,5 @@
+//! Low-level access to the host connection.
+
 use std::sync::Arc;
 
 use cookie::Cookie;

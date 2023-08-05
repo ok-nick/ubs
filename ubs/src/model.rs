@@ -1,5 +1,6 @@
 use chrono::NaiveDate;
 use serde::Serialize;
+use ubs_lib::parser;
 
 #[derive(Debug, Serialize)]
 pub struct ClassSchedule {
@@ -17,7 +18,7 @@ pub struct ClassGroup {
 
 #[derive(Debug, Serialize)]
 pub struct Class {
-    // TODO: use ubs_lib::ClassType?
+    // TODO: use parser::ClassType?
     pub class_type: Option<String>,
     pub class_id: Option<u32>,
     pub section: Option<String>,
@@ -28,10 +29,10 @@ pub struct Class {
     pub total_seats: Option<u32>,
 }
 
-impl TryFrom<ubs_lib::ClassSchedule> for ClassSchedule {
-    type Error = ubs_lib::ParseError;
+impl TryFrom<parser::ClassSchedule> for ClassSchedule {
+    type Error = parser::ParseError;
 
-    fn try_from(schedule: ubs_lib::ClassSchedule) -> Result<Self, Self::Error> {
+    fn try_from(schedule: parser::ClassSchedule) -> Result<Self, Self::Error> {
         let mut groups = Vec::new();
         for group in schedule.group_iter() {
             groups.push(ClassGroup::try_from(group)?);
@@ -41,10 +42,10 @@ impl TryFrom<ubs_lib::ClassSchedule> for ClassSchedule {
     }
 }
 
-impl TryFrom<ubs_lib::ClassGroup<'_>> for ClassGroup {
-    type Error = ubs_lib::ParseError;
+impl TryFrom<parser::ClassGroup<'_>> for ClassGroup {
+    type Error = parser::ParseError;
 
-    fn try_from(group: ubs_lib::ClassGroup<'_>) -> Result<Self, Self::Error> {
+    fn try_from(group: parser::ClassGroup<'_>) -> Result<Self, Self::Error> {
         let mut classes = Vec::new();
         for class in group.class_iter() {
             classes.push(Class::try_from(class)?);
@@ -60,10 +61,10 @@ impl TryFrom<ubs_lib::ClassGroup<'_>> for ClassGroup {
     }
 }
 
-impl TryFrom<ubs_lib::Class<'_>> for Class {
-    type Error = ubs_lib::ParseError;
+impl TryFrom<parser::Class<'_>> for Class {
+    type Error = parser::ParseError;
 
-    fn try_from(class: ubs_lib::Class<'_>) -> Result<Self, Self::Error> {
+    fn try_from(class: parser::Class<'_>) -> Result<Self, Self::Error> {
         Ok(Class {
             class_type: class
                 .class_type()

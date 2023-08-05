@@ -95,9 +95,9 @@ pub enum Error {
     #[error(transparent)]
     ScheduleError(#[from] ubs_lib::ScheduleError),
     #[error(transparent)]
-    ParseError(#[from] ubs_lib::ParseError),
+    ParseError(#[from] ubs_lib::parser::ParseError),
     #[error(transparent)]
-    SessionError(#[from] ubs_lib::SessionError),
+    SessionError(#[from] ubs_lib::session::SessionError),
     #[error(transparent)]
     FailedToInferId(#[from] ubs_lib::ParseIdError),
     #[error(transparent)]
