@@ -53,9 +53,38 @@ async fn main() -> Result<(), Error> {
             false => serde_json::to_string(&schedules)?,
         },
     };
+
+    #[cfg(feature = "color")]
+    let result = highlight_syntax(args.format, &result);
+
     println!("{result}");
 
     Ok(())
+}
+
+#[cfg(feature = "color")]
+fn highlight_syntax(format: DataFormat, text: &str) -> String {
+    use syntect::easy::HighlightLines;
+    use syntect::highlighting::{Style, ThemeSet};
+    use syntect::parsing::SyntaxSet;
+    use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
+
+    let ps = SyntaxSet::load_defaults_newlines();
+    let ts = ThemeSet::load_defaults();
+
+    let syntax = match format {
+        DataFormat::Json => ps.find_syntax_by_extension("json").unwrap(),
+    };
+    // TODO: configurable theme
+    let mut h = HighlightLines::new(syntax, &ts.themes["base16-eighties.dark"]);
+
+    let mut highlighted_text = String::with_capacity(text.len());
+    for line in LinesWithEndings::from(text) {
+        let ranges: Vec<(Style, &str)> = h.highlight_line(line, &ps).unwrap();
+        highlighted_text.push_str(&as_24_bit_terminal_escaped(&ranges[..], false));
+    }
+
+    highlighted_text
 }
 
 #[derive(Debug, thiserror::Error)]

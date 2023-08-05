@@ -20,4 +20,8 @@ tokio = { version = "1.29.1", features = [
     "rt",
     "macros",
 ], default-features = false }
-miette = { version = "5.10.0", features = ["fancy"] }
+# miette = { version = "5.10.0", features = ["fancy"] }
+syntect = {version = "5.0.0", optional = true}
+
+[features]
+color = ["syntect"]
