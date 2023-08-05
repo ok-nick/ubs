@@ -3,8 +3,8 @@
   <p><strong>University at Buffalo Schedule</strong></p>
   <p>
     <a href="https://github.com/ok-nick/ubs/actions?query=workflow"><img src="https://github.com/ok-nick/ubs/workflows/test/badge.svg" alt="test" /></a>
-    <a href="https://docs.rs/ubs/latest/ubs/"><img src="https://img.shields.io/readthedocs/ubs" alt="docs" /></a>
-    <a href="https://crates.io/crates/ubs"><img src="https://img.shields.io/crates/v/ubs" alt="crates" /></a>
+    <a href="https://docs.rs/ubs-lib"><img src="https://img.shields.io/readthedocs/ubs-lib" alt="docs" /></a>
+    <a href="https://crates.io/crates/ubs-lib"><img src="https://img.shields.io/crates/v/ubs-lib" alt="crates" /></a>
     <a href="https://discord.gg/w9Bc6xH7uC"><img src="https://img.shields.io/discord/834969350061424660?label=discord" alt="discord" /></a>
   </p>
 </div>
@@ -12,6 +12,13 @@
 `ubs` is a library designed to provide real-time access to University at Buffalo class schedules, offering a wealth of information on each class. This includes: `class open/closed`, `start/end date`, `start/end time`, `class type`, `class id`, `section`, `room`, `instructor`, `seats open/closed`, etc.
 
 <img src="https://user-images.githubusercontent.com/25470747/258559272-32e79831-eda7-41b5-aba5-87c3d8fc363f.gif">
+
+## Installation
+### Cargo
+```bash
+$ cargo install ubs
+```
+
 
 ## Examples
 Below is a snippet of using the high-level API with [tokio](https://github.com/tokio-rs/tokio) for fetching live class information.
@@ -39,7 +46,6 @@ async fn main() -> Result<(), ubs_lib::Error> {
 ```
 
 ## FAQ
-
 ### How does it work?
 The process involves sending a precisely tailored sequence of network requests directed towards the [target URL](https://www.pub.hub.buffalo.edu/). Upon receiving the requests, the resulting HTML is cached until the user requests specific information, at which point it is parsed to specification and the inner values are extracted using Regex.
 

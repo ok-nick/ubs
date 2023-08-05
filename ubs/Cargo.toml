@@ -2,11 +2,13 @@
 name = "ubs"
 version = "0.1.0"
 description = "a CLI for fetching real-time University at Buffalo class schedules"
+documentation = "https://docs.rs/ubs"
 
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
+readme.workspace = true
 
 [dependencies]
 clap = { version = "4.3.19", features = ["derive"] }

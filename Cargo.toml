@@ -7,3 +7,4 @@ edition = "2021"
 authors = ["ok-nick <nick.libraries@gmail.com>"]
 repository = "https://github.com/ok-nick/ubs"
 license = "MIT"
+readme = "README.md"

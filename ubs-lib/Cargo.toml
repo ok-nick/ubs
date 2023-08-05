@@ -2,11 +2,13 @@
 name = "ubs-lib"
 version = "0.1.0"
 description = "a library for fetching real-time University at Buffalo class schedules"
+documentation = "https://docs.rs/ubs-lib"
 
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
+readme.workspace = true
 
 [dependencies]
 tl = "0.7.7"
