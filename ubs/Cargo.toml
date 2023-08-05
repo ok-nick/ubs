@@ -15,7 +15,7 @@ clap = { version = "4.3.19", features = ["derive"] }
 thiserror = "1.0.44"
 serde = { version = "1.0.181", features = ["derive"] }
 serde_json = "1.0.104"
-ubs-lib = { path = "../ubs-lib" } # TODO: temporary
+ubs-lib = { version = "0.1.0" } #, features = ["simd"] }
 chrono = { version = "0.4.26", features = ["serde"] }
 futures = "0.3.28"
 tokio = { version = "1.29.1", features = [
