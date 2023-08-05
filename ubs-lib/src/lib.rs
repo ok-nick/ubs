@@ -2,14 +2,13 @@ mod ids;
 mod parser;
 mod session;
 
-pub use ids::{Career, Course, Semester};
+pub use ids::{Career, Course, ParseIdError, Semester};
 pub use parser::{Class, ClassGroup, ClassSchedule, ClassType, ParseError};
 pub use session::{Query, Session, SessionError, Token};
 
 use futures::{TryStream, TryStreamExt};
 use hyper::Client;
 use hyper_rustls::HttpsConnectorBuilder;
-use thiserror::Error;
 
 // TODO: add feature in docs
 // #[cfg(feature = "client")]
@@ -18,9 +17,11 @@ pub async fn schedule_iter<'a>(
     semester: Semester,
 ) -> Result<
     impl TryStream<Ok = Result<ClassSchedule, ParseError>, Error = SessionError> + 'a,
-    SessionError,
+    ScheduleError,
 > {
-    let career = course.career().unwrap(); // TODO: error if not found
+    let career = course
+        .career()
+        .ok_or_else(|| ScheduleError::FailedToInferCareer(course.clone()))?;
     schedule_iter_with_career(course, semester, career).await
 }
 
@@ -30,7 +31,7 @@ pub async fn schedule_iter_with_career<'a>(
     career: Career,
 ) -> Result<
     impl TryStream<Ok = Result<ClassSchedule, ParseError>, Error = SessionError> + 'a,
-    SessionError,
+    ScheduleError,
 > {
     let client = Client::builder().build(
         HttpsConnectorBuilder::new()
@@ -46,10 +47,12 @@ pub async fn schedule_iter_with_career<'a>(
         .map_ok(|bytes| ClassSchedule::new(bytes.into(), 1)))
 }
 
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("failed to connect to server")]
+#[derive(Debug, thiserror::Error)]
+pub enum ScheduleError {
+    #[error(transparent)]
     ConnectionFailed(#[from] SessionError),
-    #[error("failed to parse data")]
-    ParsingFailed(#[from] ParseError),
+    #[error(transparent)]
+    ParseFailed(#[from] ParseError),
+    #[error("failed to infer career from course `{0:?}`, consider passing it explicitly via `schedule_iter_with_career`")]
+    FailedToInferCareer(Course),
 }

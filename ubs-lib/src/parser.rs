@@ -140,12 +140,15 @@ impl<'a> ClassGroup<'a> {
     pub fn session(&self) -> Result<u32, ParseError> {
         let session =
             get_text_from_id_without_sub_nodes(self.dom, &format!(SESSION_TAG!(), self.group_num))?;
-        // TODO: cleanup
         let re = Regex::new(SESSION_FORMAT)
             .unwrap()
             .captures(session)
-            .unwrap();
-        Ok(re.get(1).unwrap().as_str().parse().unwrap())
+            .ok_or(ParseError::UnknownElementFormat)?;
+        re.get(1)
+            .ok_or(ParseError::UnknownElementFormat)?
+            .as_str()
+            .parse()
+            .map_err(|_| ParseError::UnknownElementFormat)
     }
 
     pub fn start_date(&self) -> Result<NaiveDate, ParseError> {
@@ -164,16 +167,15 @@ impl<'a> ClassGroup<'a> {
         // TODO: remove boilerplate, regex?
         Ok((
             NaiveDate::parse_from_str(
-                // TODO: more specific error type, here and below
-                split_dates.next().ok_or(ParseError::UnknownFormat)?,
+                split_dates.next().ok_or(ParseError::UnknownElementFormat)?,
                 DATES_TIME_FORMAT,
             )
-            .or(Err(ParseError::UnknownFormat))?,
+            .or(Err(ParseError::UnknownElementFormat))?,
             NaiveDate::parse_from_str(
-                split_dates.next().ok_or(ParseError::UnknownFormat)?,
+                split_dates.next().ok_or(ParseError::UnknownElementFormat)?,
                 DATES_TIME_FORMAT,
             )
-            .or(Err(ParseError::UnknownFormat))?,
+            .or(Err(ParseError::UnknownElementFormat))?,
         ))
     }
 }
@@ -187,16 +189,14 @@ pub struct Class<'a> {
 }
 
 impl Class<'_> {
-    // TODO: make error
     pub fn class_type(&self) -> Result<ClassType, ParseError> {
-        // TODO: handle unwrap
-        self.class_info().map(|info| info.2.parse().unwrap())
+        self.class_info()
+            .map(|info| info.2.parse().map_err(|_| ParseError::UnknownElementFormat))?
     }
 
-    // TODO: make error
     pub fn class_id(&self) -> Result<u32, ParseError> {
-        // TODO: handle unwrap
-        self.class_info().map(|info| info.0.parse().unwrap())
+        self.class_info()
+            .map(|info| info.0.parse().map_err(|_| ParseError::UnknownElementFormat))?
     }
 
     pub fn section(&self) -> Result<&str, ParseError> {
@@ -204,35 +204,39 @@ impl Class<'_> {
     }
 
     // If the class is asynchronous a datetime doesn't exist.
-    pub fn days_of_week(&self) -> Result<Option<Vec<DayOfWeek>>, ParseError> {
+    pub fn days_of_week(&self) -> Result<Option<Vec<Result<DayOfWeek, ParseError>>>, ParseError> {
         self.datetime().map(|result| {
             result.map(|datetime| {
                 datetime
                     .0
                     .iter()
-                    // TODO: handle unwrap
-                    .map(|days| days.parse().unwrap())
+                    .map(|days| days.parse().map_err(|_| ParseError::UnknownElementFormat))
                     .collect()
             })
         })
     }
 
     pub fn start_time(&self) -> Result<Option<NaiveTime>, ParseError> {
-        // TODO: fix up
-        self.datetime().map(|result| {
-            result.map(|datetime| {
-                NaiveTime::parse_from_str(&datetime.1, DATETIME_TIME_FORMAT).unwrap()
-            })
-        })
+        self.datetime()
+            .map(|result| {
+                result.map(|datetime| {
+                    NaiveTime::parse_from_str(&datetime.1, DATETIME_TIME_FORMAT)
+                        .map_err(|_| ParseError::UnknownElementFormat)
+                })
+            })?
+            .transpose()
     }
 
     pub fn end_time(&self) -> Result<Option<NaiveTime>, ParseError> {
-        // TODO: fix boilerplate and unwrap
-        self.datetime().map(|result| {
-            result.map(|datetime| {
-                NaiveTime::parse_from_str(&datetime.2, DATETIME_TIME_FORMAT).unwrap()
-            })
-        })
+        // TODO: fix boilerplate with above
+        self.datetime()
+            .map(|result| {
+                result.map(|datetime| {
+                    NaiveTime::parse_from_str(&datetime.2, DATETIME_TIME_FORMAT)
+                        .map_err(|_| ParseError::UnknownElementFormat)
+                })
+            })?
+            .transpose()
     }
 
     // Sometimes it returns `Arr Arr`
@@ -277,15 +281,14 @@ impl Class<'_> {
             ),
         )?;
 
-        // TODO: fix up
         let re = Regex::new(CLASS_ID_FORMAT)
             .unwrap()
             .captures(class_info)
-            .unwrap();
+            .ok_or(ParseError::UnknownElementFormat)?;
         Ok((
-            re.get(1).unwrap().as_str(),
-            re.get(2).unwrap().as_str(),
-            re.get(3).unwrap().as_str(),
+            re.get(1).ok_or(ParseError::UnknownElementFormat)?.as_str(),
+            re.get(2).ok_or(ParseError::UnknownElementFormat)?.as_str(),
+            re.get(3).ok_or(ParseError::UnknownElementFormat)?.as_str(),
         ))
     }
 
@@ -309,23 +312,28 @@ impl Class<'_> {
             },
             |node| {
                 match node.inner_text(self.dom.parser()) {
-                    Cow::Borrowed(_) => Err(ParseError::UnknownFormat),
+                    Cow::Borrowed(_) => Err(ParseError::UnknownHtmlFormat),
                     Cow::Owned(value) => {
-                        // TODO: cleanup
                         let re = Regex::new(DATETIME_FORMAT)
                             .unwrap()
                             .captures(&value)
-                            .unwrap();
+                            .ok_or(ParseError::UnknownElementFormat)?;
 
                         Ok(Some((
                             re.get(1)
-                                .unwrap()
+                                .ok_or(ParseError::UnknownElementFormat)?
                                 .as_str()
                                 .split_whitespace()
                                 .map(|string| string.to_owned())
                                 .collect(), // Days of week (e.g. Wednesday)
-                            re.get(2).unwrap().as_str().to_owned(), // Start time (e.g. 3:00PM)
-                            re.get(3).unwrap().as_str().to_owned(), // End time (e.g. 4:00PM)
+                            re.get(2)
+                                .ok_or(ParseError::UnknownElementFormat)?
+                                .as_str()
+                                .to_owned(), // Start time (e.g. 3:00PM)
+                            re.get(3)
+                                .ok_or(ParseError::UnknownElementFormat)?
+                                .as_str()
+                                .to_owned(), // End time (e.g. 4:00PM)
                         )))
                     }
                 }
@@ -342,12 +350,22 @@ impl Class<'_> {
         match seats {
             "Closed" => Ok(None),
             _ => {
-                // TODO: fix up (constants and error types)
-                let re = Regex::new(SEATS_FORMAT).unwrap().captures(seats).unwrap();
+                let re = Regex::new(SEATS_FORMAT)
+                    .unwrap()
+                    .captures(seats)
+                    .ok_or(ParseError::UnknownElementFormat)?;
 
                 Ok(Some((
-                    re.get(1).unwrap().as_str().parse().unwrap(), // Open seats
-                    re.get(2).unwrap().as_str().parse().unwrap(), // Total seats
+                    re.get(1)
+                        .ok_or(ParseError::UnknownElementFormat)?
+                        .as_str()
+                        .parse()
+                        .map_err(|_| ParseError::UnknownElementFormat)?, // Open seats
+                    re.get(2)
+                        .ok_or(ParseError::UnknownHtmlFormat)?
+                        .as_str()
+                        .parse()
+                        .map_err(|_| ParseError::UnknownElementFormat)?, // Total seats
                 )))
             }
         }
@@ -363,8 +381,7 @@ pub enum ClassType {
 }
 
 impl FromStr for ClassType {
-    // TODO: need to make error
-    type Err = ();
+    type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
@@ -372,7 +389,7 @@ impl FromStr for ClassType {
             "LAB" => ClassType::Lab,
             "LEC" => ClassType::Lecture,
             "SEM" => ClassType::Seminar,
-            _ => return Err(()),
+            _ => return Err(ParseError::UnknownElementFormat),
         })
     }
 }
@@ -404,8 +421,7 @@ pub enum DayOfWeek {
 }
 
 impl FromStr for DayOfWeek {
-    // TODO: need to make error
-    type Err = ();
+    type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
@@ -416,7 +432,7 @@ impl FromStr for DayOfWeek {
             "Thursday" => DayOfWeek::Thursday,
             "Friday" => DayOfWeek::Friday,
             "Saturday" => DayOfWeek::Saturday,
-            _ => return Err(()),
+            _ => return Err(ParseError::UnknownElementFormat),
         })
     }
 }
@@ -445,7 +461,7 @@ fn get_text_from_id_without_sub_nodes<'a>(dom: &'a VDom, id: &str) -> Result<&'a
         // TODO: this is relying on implementation details, make it more explicit
         // If it's owned, that means the element had multiple sub-nodes, which shouldn't be the
         // case
-        Cow::Owned(_) => Err(ParseError::UnknownFormat),
+        Cow::Owned(_) => Err(ParseError::UnknownHtmlFormat),
     }
 }
 
@@ -458,7 +474,6 @@ fn get_node_from_id<'a>(dom: &'a VDom, id: &str) -> Result<&'a Node<'a>, ParseEr
         .unwrap())
 }
 
-// TODO: add more specific errors and more context
 #[derive(Debug, Error)]
 pub enum ParseError {
     /// HTML is not valid Utf-8.
@@ -472,10 +487,12 @@ pub enum ParseError {
     #[error("could not find tags in HTML")]
     EmptyHtml,
     /// HTML is in an unknown format.
-    /// The most likely cause of this issue is the website being updated. Please leave an issue on
-    /// GitHub if this error occurs.
-    #[error("could not parse HTML due to unknown format")]
-    UnknownFormat,
+    #[error("format of HTML is not as expected")]
+    UnknownHtmlFormat,
+    // TODO: I can provide much more context here
+    /// Content of HTML element is in an unknown format
+    #[error("format of element could not be parsed because it is unknown")]
+    UnknownElementFormat,
     /// HTML tag for class does not exist
     #[error("could not find tag for class in HTML")]
     MissingTag,

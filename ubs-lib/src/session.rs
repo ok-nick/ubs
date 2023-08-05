@@ -220,7 +220,7 @@ pub enum SessionError {
     #[error("an argument while building an HTTP request was invalid")]
     MalformedHttpArgs(#[from] hyper::http::Error),
     /// Failed to send HTTP request.
-    #[error("failed to send HTTP request")]
+    #[error(transparent)]
     HttpRequestFailed(#[from] hyper::Error),
     /// Attempted to parse a cookie with an invalid format.
     #[error("could not parse cookie with an invalid format")]

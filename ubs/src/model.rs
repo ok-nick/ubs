@@ -21,7 +21,7 @@ pub struct Class {
     pub class_type: Option<String>,
     pub class_id: Option<u32>,
     pub section: Option<String>,
-    pub days_of_week: Option<Vec<String>>,
+    pub days_of_week: Option<Vec<Option<String>>>,
     pub room: Option<String>,
     pub instructor: Option<String>,
     pub open_seats: Option<u32>,
@@ -71,11 +71,14 @@ impl TryFrom<ubs_lib::Class<'_>> for Class {
                 .map(|class_type| class_type.to_string()),
             class_id: class.class_id().ok(),
             section: class.section().ok().map(ToOwned::to_owned),
-            days_of_week: class
-                .days_of_week()
-                .ok()
-                .flatten()
-                .map(|dow| dow.iter().map(ToString::to_string).collect()),
+            days_of_week: class.days_of_week().ok().flatten().map(|dow| {
+                dow.iter()
+                    .map(|dow| match dow {
+                        Ok(dow) => Some(ToString::to_string(dow)),
+                        Err(_) => None,
+                    })
+                    .collect()
+            }),
             room: class.room().ok().map(ToOwned::to_owned),
             instructor: class.instructor().ok().map(ToOwned::to_owned),
             open_seats: class.open_seats().ok().flatten(),

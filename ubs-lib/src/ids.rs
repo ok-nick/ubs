@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use thiserror::Error;
+
 // TODO: do more validation in FromStr
 
 #[derive(Debug, Clone)]
@@ -47,13 +49,16 @@ impl Course {
 }
 
 impl FromStr for Course {
-    type Err = ();
+    type Err = ParseIdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match &*normalize(s) {
             "CSE115" => Ok(Course::Cse115),
             // TODO: valid course id is 6 characters and an integer
-            _ => Err(()),
+            _ => Err(ParseIdError::InvalidId {
+                id: "Course".to_owned(),
+                given: s.to_owned(),
+            }),
         }
     }
 }
@@ -71,7 +76,7 @@ impl Semester {
 }
 
 impl FromStr for Semester {
-    type Err = ();
+    type Err = ParseIdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match &*normalize(s) {
@@ -79,7 +84,10 @@ impl FromStr for Semester {
             "SUMMER2023" => Ok(Semester::Summer2023),
             "FALL2023" => Ok(Semester::Fall2023),
             "WINTER2023" => Ok(Semester::Winter2023),
-            _ => Err(()),
+            _ => Err(ParseIdError::InvalidId {
+                id: "Semester".to_owned(),
+                given: s.to_owned(),
+            }),
         }
     }
 }
@@ -99,7 +107,7 @@ impl Career {
 }
 
 impl FromStr for Career {
-    type Err = ();
+    type Err = ParseIdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match &*normalize(s) {
@@ -109,15 +117,23 @@ impl FromStr for Career {
             "DENTALMEDICINE" => Ok(Career::DentalMedicine),
             "MEDICINE" => Ok(Career::Medicine),
             "PHARMACY" => Ok(Career::Pharmacy),
-            _ => Err(()),
+            _ => Err(ParseIdError::InvalidId {
+                id: "Career".to_owned(),
+                given: s.to_owned(),
+            }),
         }
     }
 }
 
-// TODO: more filtering
 pub fn normalize(s: &str) -> String {
     s.chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>()
         .to_uppercase()
+}
+
+#[derive(Debug, Error)]
+pub enum ParseIdError {
+    #[error("`{given}` is an invalid `{id}``")]
+    InvalidId { id: String, given: String },
 }

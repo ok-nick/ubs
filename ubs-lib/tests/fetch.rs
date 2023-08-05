@@ -2,7 +2,7 @@ use futures::TryStreamExt;
 use ubs_lib::{Course, Semester};
 
 #[tokio::test]
-async fn schedule_iter() -> Result<(), ubs_lib::Error> {
+async fn schedule_iter() -> Result<(), ubs_lib::ScheduleError> {
     let mut schedule_iter = ubs_lib::schedule_iter(Course::Cse115, Semester::Spring2023).await?;
 
     #[allow(clippy::never_loop)] // TODO: temp
