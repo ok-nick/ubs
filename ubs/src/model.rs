@@ -51,7 +51,7 @@ impl TryFrom<ubs_lib::ClassGroup<'_>> for ClassGroup {
         }
 
         Ok(ClassGroup {
-            is_open: None, // TODO: this
+            is_open: group.is_open().ok(),
             session: group.session().ok(),
             start_date: group.start_date().ok(),
             end_date: group.end_date().ok(),
