@@ -7,7 +7,7 @@ use regex::Regex;
 use thiserror::Error;
 use tl::{Node, ParserOptions, VDom, VDomGuard};
 
-use crate::Semester;
+use crate::{ParseIdError, Semester};
 
 const CLASSES_PER_PAGE: u32 = 50;
 const CLASSES_PER_GROUP: u32 = 3;
@@ -95,9 +95,10 @@ impl ClassSchedule {
     }
 
     /// Get the semester for the schedule.
-    pub fn semester(&self) -> Semester {
-        // TODO: search for TERM_VAL_TBL_DESCR to get "Spring 2023"
-        todo!()
+    pub fn semester(&self) -> Result<Semester, ParseError> {
+        get_text_from_id_without_sub_nodes(self.dom.get_ref(), "TERM_VAL_TBL_DESCR")?
+            .parse::<Semester>()
+            .map_err(|err| err.into())
     }
 
     /// Iterator over groups of classes.
@@ -124,6 +125,7 @@ pub struct ClassGroup<'a> {
     group_num: u32,
 }
 
+// TODO: return if group is open/closed (not as straightforward as getting id)
 impl<'a> ClassGroup<'a> {
     /// Iterator over classes in group.
     pub fn class_iter(&self) -> impl Iterator<Item = Class<'a>> + '_ {
@@ -132,21 +134,6 @@ impl<'a> ClassGroup<'a> {
             class_num,
             group_num: self.group_num,
         })
-    }
-
-    /// Get if the class group is open or closed.
-    pub fn is_open(&self) -> Result<bool, ParseError> {
-        for i in 1..=3 {
-            let seats = get_text_from_id_without_sub_nodes(
-                self.dom,
-                &format!(SEATS_TAG!(), i, self.group_num),
-            )?;
-            if seats == "Closed" {
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
     }
 
     /// Get the current session of the class group.
@@ -209,6 +196,20 @@ pub struct Class<'a> {
 }
 
 impl Class<'_> {
+    /// Get if the class is open or closed.
+    pub fn is_open(&self) -> Result<bool, ParseError> {
+        let seats = get_text_from_id_without_sub_nodes(
+            self.dom,
+            &format!(SEATS_TAG!(), self.class_num + 1, self.group_num),
+        )?;
+
+        if seats == "Closed" {
+            return Ok(false);
+        }
+
+        Ok(true)
+    }
+
     /// Get the type of class.
     ///
     /// For instance, this function will return `Lecture`, `Seminar`,
@@ -539,6 +540,9 @@ fn get_node_from_id<'a>(dom: &'a VDom, id: &str) -> Result<&'a Node<'a>, ParseEr
 /// Error when parsing schedule data.
 #[derive(Debug, Error)]
 pub enum ParseError {
+    /// Id is in an unknown format.
+    #[error(transparent)]
+    UnknownIdFormat(#[from] ParseIdError),
     /// HTML is not valid Utf-8.
     #[error("could not parse HTML due to invalid Utf-8 encoding")]
     // HtmlInvalidUtf8(#[from] str::Utf8Error),
@@ -550,7 +554,7 @@ pub enum ParseError {
     #[error("could not find tags in HTML")]
     EmptyHtml,
     /// HTML is in an unknown format.
-    #[error("format of HTML is not as expected")]
+    #[error("format of HTML could not be parsed because it is unknown")]
     UnknownHtmlFormat,
     // TODO: I can provide much more context here
     /// Content of HTML element is in an unknown format

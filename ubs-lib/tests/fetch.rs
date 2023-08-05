@@ -8,13 +8,13 @@ async fn schedule_iter() -> Result<(), ubs_lib::ScheduleError> {
     #[allow(clippy::never_loop)] // TODO: temp
     while let Some(schedule) = schedule_iter.try_next().await? {
         for group in schedule?.group_iter() {
-            println!("Open: {}", group.is_open()?);
             println!("Session: {}", group.session()?);
             println!("Start Date: {}", group.start_date()?);
             println!("End Date: {}", group.end_date()?);
             println!();
             for class in group.class_iter() {
                 println!("Id: {}", class.class_type()?);
+                println!("Open: {}", class.is_open()?);
                 println!("Section: {}", class.section()?);
                 println!("Days of Week: {:?}", class.days_of_week()?);
                 println!("Start Time: {:?}", class.start_time()?);

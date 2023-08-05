@@ -9,7 +9,6 @@ pub struct ClassSchedule {
 
 #[derive(Debug, Serialize)]
 pub struct ClassGroup {
-    pub is_open: Option<bool>,
     pub session: Option<u32>,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
@@ -19,6 +18,7 @@ pub struct ClassGroup {
 #[derive(Debug, Serialize)]
 pub struct Class {
     // TODO: use parser::ClassType?
+    pub is_open: Option<bool>,
     pub class_type: Option<String>,
     pub class_id: Option<u32>,
     pub section: Option<String>,
@@ -52,7 +52,6 @@ impl TryFrom<parser::ClassGroup<'_>> for ClassGroup {
         }
 
         Ok(ClassGroup {
-            is_open: group.is_open().ok(),
             session: group.session().ok(),
             start_date: group.start_date().ok(),
             end_date: group.end_date().ok(),
@@ -66,6 +65,7 @@ impl TryFrom<parser::Class<'_>> for Class {
 
     fn try_from(class: parser::Class<'_>) -> Result<Self, Self::Error> {
         Ok(Class {
+            is_open: class.is_open().ok(),
             class_type: class
                 .class_type()
                 .ok()

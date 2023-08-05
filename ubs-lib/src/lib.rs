@@ -1,6 +1,6 @@
 //! # ubs
 //! `ubs` provides an interface for fetching real-time Univeristy at Buffalo class schedules.
-//! ## Iterating class schedules
+//! ## Usage
 //! ```rust
 //! use ubs_lib::{Course, Semester};
 //!
