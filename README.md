@@ -2,7 +2,7 @@
   <h1><code>ubs</code></h1>
   <p><strong>University at Buffalo Schedule</strong></p>
   <p>
-    <a href="https://github.com/ok-nick/ubs/actions/workflows/test.yml"><img src="https://github.com/ok-nick/ubs/actions/workflows/test.yml/badge.svg?event=schedule" alt="test" /></a>
+    <a href="https://github.com/ok-nick/ubs/actions/workflows/test.yml"><img src="https://github.com/ok-nick/ubs/actions/workflows/test.yml/badge.svg" alt="test" /></a>
     <a href="https://docs.rs/ubs-lib"><img src="https://docs.rs/ubs-lib/badge.svg" alt="docs" /></a>
     <a href="https://crates.io/crates/ubs-lib"><img src="https://img.shields.io/crates/v/ubs-lib" alt="crates" /></a>
     <a href="https://discord.gg/w9Bc6xH7uC"><img src="https://img.shields.io/discord/834969350061424660?label=discord" alt="discord" /></a>

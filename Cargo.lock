@@ -1220,7 +1220,7 @@ checksum = "3528ecfd12c466c6f163363caf2d02a71161dd5e1cc6ae7b34207ea2d42d81ed"
 
 [[package]]
 name = "ubs"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "clap",
@@ -1230,22 +1230,7 @@ dependencies = [
  "syntect",
  "thiserror",
  "tokio",
- "ubs-lib 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "ubs-lib"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "cookie",
- "futures",
- "hyper",
- "hyper-rustls",
- "regex",
- "thiserror",
- "tl",
- "tokio",
+ "ubs-lib 0.1.0",
 ]
 
 [[package]]
@@ -1262,6 +1247,21 @@ dependencies = [
  "regex",
  "thiserror",
  "tl",
+]
+
+[[package]]
+name = "ubs-lib"
+version = "0.1.1"
+dependencies = [
+ "chrono",
+ "cookie",
+ "futures",
+ "hyper",
+ "hyper-rustls",
+ "regex",
+ "thiserror",
+ "tl",
+ "tokio",
 ]
 
 [[package]]

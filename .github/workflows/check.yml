@@ -4,11 +4,11 @@ on:
   push:
     paths:
       - "**.rs"
-      - ".github/workflows/**"
+      - ".github/workflows/check.yml"
   pull_request:
     paths:
       - "**.rs"
-      - ".github/workflows/**"
+      - ".github/workflows/check.yml"
 
 jobs:
   lint:
@@ -16,10 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: switch to nightly toolchain
-        run: |
-          rustup default nightly
-          rustup component add clippy
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
 
       - name: clippy
         run: cargo clippy --all-features
@@ -31,10 +29,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: switch to nightly toolchain
-        run: |
-          rustup default nightly
-          rustup component add rustfmt
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
 
       - name: rustfmt
         run: cargo fmt --all -- --check

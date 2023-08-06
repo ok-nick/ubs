@@ -2,8 +2,10 @@
 //! `ubs` provides an interface for fetching real-time Univeristy at Buffalo class schedules.
 //! ## Usage
 //! ```rust
+//! # use futures::stream::TryStreamExt;
 //! use ubs_lib::{Course, Semester};
 //!
+//! # async fn run() -> Result<(), ubs_lib::ScheduleError> {
 //! let mut schedule_iter = ubs_lib::schedule_iter(
 //!     Course::Cse115,
 //!     Semester::Spring2023,
@@ -16,6 +18,8 @@
 //!         }
 //!     }
 //! }
+//! # Ok(())
+//! # }
 //!```
 
 mod ids;
