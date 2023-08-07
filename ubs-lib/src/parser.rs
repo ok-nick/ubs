@@ -136,7 +136,7 @@ pub struct ClassGroup<'a> {
 // TODO: return if group is open/closed (not as straightforward as getting id)
 impl<'a> ClassGroup<'a> {
     /// Get a class from its index.
-    pub fn class_from_index(&self, index: u32) -> Class {
+    pub fn class_from_index(&self, index: u32) -> Class<'a> {
         return Class {
             dom: self.dom,
             class_num: index,
