@@ -103,10 +103,10 @@ impl ClassSchedule {
 
     /// Get a group from its index.
     pub fn group_from_index(&self, index: u32) -> ClassGroup {
-        return ClassGroup {
+        ClassGroup {
             dom: self.dom.get_ref(),
             group_num: index,
-        };
+        }
     }
 
     /// Iterator over groups of classes.
@@ -137,11 +137,11 @@ pub struct ClassGroup<'a> {
 impl<'a> ClassGroup<'a> {
     /// Get a class from its index.
     pub fn class_from_index(&self, index: u32) -> Class<'a> {
-        return Class {
+        Class {
             dom: self.dom,
             class_num: index,
             group_num: self.group_num,
-        };
+        }
     }
 
     /// Iterator over classes in group.
