@@ -101,6 +101,14 @@ impl ClassSchedule {
             .map_err(|err| err.into())
     }
 
+    /// Get a group from its index.
+    pub fn group_from_index(&self, index: u32) -> ClassGroup {
+        return ClassGroup {
+            dom: self.dom.get_ref(),
+            group_num: index,
+        };
+    }
+
     /// Iterator over groups of classes.
     ///
     /// In the catalog, classes are grouped in sets of 3 (usually)
@@ -127,6 +135,15 @@ pub struct ClassGroup<'a> {
 
 // TODO: return if group is open/closed (not as straightforward as getting id)
 impl<'a> ClassGroup<'a> {
+    /// Get a class from its index.
+    pub fn class_from_index(&self, index: u32) -> Class {
+        return Class {
+            dom: self.dom,
+            class_num: index,
+            group_num: self.group_num,
+        };
+    }
+
     /// Iterator over classes in group.
     pub fn class_iter(&self) -> impl Iterator<Item = Class<'a>> + '_ {
         (0..CLASSES_PER_GROUP).map(|class_num| Class {
