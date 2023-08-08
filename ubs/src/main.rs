@@ -3,7 +3,7 @@ use std::str::FromStr;
 use clap::Parser;
 use futures::TryStreamExt;
 use options::Options;
-use ubs_lib::{parser::ClassSchedule, Career, Course, Semester};
+use ubs_lib::{Career, Course, Semester};
 
 use crate::options::{DataFormat, Raw};
 
@@ -39,7 +39,7 @@ async fn main() -> Result<(), Error> {
 
     #[allow(clippy::never_loop)] // TODO: temp
     while let Some(schedule) = schedule_iter.try_next().await? {
-        schedules.push(ClassSchedule::try_from(schedule?)?);
+        schedules.push(schedule?.model()?);
         break; // TODO: for now since subsequent pages aren't implemented
     }
 

@@ -1230,23 +1230,7 @@ dependencies = [
  "syntect",
  "thiserror",
  "tokio",
- "ubs-lib 0.1.0",
-]
-
-[[package]]
-name = "ubs-lib"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f863c39569171c4d1b6d35ecc604362ba2885915a1099c25cdf5b1335a611b0"
-dependencies = [
- "chrono",
- "cookie",
- "futures",
- "hyper",
- "hyper-rustls",
- "regex",
- "thiserror",
- "tl",
+ "ubs-lib",
 ]
 
 [[package]]
