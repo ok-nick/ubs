@@ -1,3 +1,5 @@
+//! Models of parser structs with all fields evaluated.
+
 use chrono::NaiveDate;
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
