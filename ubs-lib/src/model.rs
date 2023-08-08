@@ -1,6 +1,6 @@
 //! Models of parser structs with all fields evaluated.
 
-use chrono::NaiveDate;
+use chrono::{NaiveDate, NaiveTime};
 #[cfg(feature = "serde_support")]
 use serde::{Deserialize, Serialize};
 
@@ -12,6 +12,7 @@ use crate::parser::{Class, ClassGroup, ClassSchedule, ClassType, DayOfWeek, Pars
 #[derive(Debug)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct ClassScheduleModel {
+    // TODO: add semester?
     pub groups: Vec<ClassGroupModel>,
 }
 
@@ -34,6 +35,8 @@ pub struct ClassModel {
     pub class_id: Option<u32>,
     pub section: Option<String>,
     pub days_of_week: Option<Vec<Option<DayOfWeek>>>,
+    pub start_time: Option<NaiveTime>,
+    pub end_time: Option<NaiveTime>,
     pub room: Option<String>,
     pub instructor: Option<String>,
     pub open_seats: Option<u32>,
@@ -85,6 +88,8 @@ impl TryFrom<&Class<'_>> for ClassModel {
                 .ok()
                 .flatten()
                 .map(|dow| dow.into_iter().map(|dow| dow.ok()).collect()),
+            start_time: class.start_time()?,
+            end_time: class.end_time()?,
             room: class.room().ok().map(ToOwned::to_owned),
             instructor: class.instructor().ok().map(ToOwned::to_owned),
             open_seats: class.open_seats().ok().flatten(),
