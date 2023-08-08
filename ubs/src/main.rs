@@ -3,14 +3,10 @@ use std::str::FromStr;
 use clap::Parser;
 use futures::TryStreamExt;
 use options::Options;
-use ubs_lib::{Career, Course, Semester};
+use ubs_lib::{parser::ClassSchedule, Career, Course, Semester};
 
-use crate::{
-    model::ClassSchedule,
-    options::{DataFormat, Raw},
-};
+use crate::options::{DataFormat, Raw};
 
-mod model;
 mod options;
 
 #[tokio::main(flavor = "current_thread")]

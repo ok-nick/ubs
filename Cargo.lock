@@ -1259,6 +1259,7 @@ dependencies = [
  "hyper",
  "hyper-rustls",
  "regex",
+ "serde",
  "thiserror",
  "tl",
  "tokio",

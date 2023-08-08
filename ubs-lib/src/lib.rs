@@ -23,6 +23,7 @@
 //!```
 
 mod ids;
+pub mod model;
 pub mod parser;
 pub mod session;
 

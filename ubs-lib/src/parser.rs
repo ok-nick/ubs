@@ -4,10 +4,15 @@ use std::{borrow::Cow, fmt::Display, str::FromStr};
 
 use chrono::{NaiveDate, NaiveTime};
 use regex::Regex;
+#[cfg(feature = "serde_support")]
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tl::{Node, ParserOptions, VDom, VDomGuard};
 
-use crate::{ParseIdError, Semester};
+use crate::{
+    model::{ClassGroupModel, ClassModel, ClassScheduleModel},
+    ParseIdError, Semester,
+};
 
 const CLASSES_PER_PAGE: u32 = 50;
 const CLASSES_PER_GROUP: u32 = 3;
@@ -94,11 +99,9 @@ impl ClassSchedule {
         Ok(Self { dom, page })
     }
 
-    /// Get the semester for the schedule.
-    pub fn semester(&self) -> Result<Semester, ParseError> {
-        get_text_from_id_without_sub_nodes(self.dom.get_ref(), "TERM_VAL_TBL_DESCR")?
-            .parse::<Semester>()
-            .map_err(|err| err.into())
+    /// Return a model of the class schedule with all fields evaluated.
+    pub fn model(&self) -> Result<ClassScheduleModel, ParseError> {
+        self.try_into()
     }
 
     /// Get a group from its index.
@@ -123,11 +126,18 @@ impl ClassSchedule {
             group_num,
         })
     }
+
+    /// Get the semester for the schedule.
+    pub fn semester(&self) -> Result<Semester, ParseError> {
+        get_text_from_id_without_sub_nodes(self.dom.get_ref(), "TERM_VAL_TBL_DESCR")?
+            .parse::<Semester>()
+            .map_err(|err| err.into())
+    }
 }
 
 // TODO: Every lecture is paired with every possible combo of recs/labs, I can simplify this
 /// Parser for raw class group data.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct ClassGroup<'a> {
     dom: &'a VDom<'a>,
     group_num: u32,
@@ -135,6 +145,11 @@ pub struct ClassGroup<'a> {
 
 // TODO: return if group is open/closed (not as straightforward as getting id)
 impl<'a> ClassGroup<'a> {
+    /// Return a model of the class group with all fields evaluated.
+    pub fn model(&self) -> Result<ClassGroupModel, ParseError> {
+        self.try_into()
+    }
+
     /// Get a class from its index.
     pub fn class_from_index(&self, index: u32) -> Class<'a> {
         Class {
@@ -205,7 +220,7 @@ impl<'a> ClassGroup<'a> {
 
 // TODO: empty text will equal `&nbsp;`
 /// Parser for raw class data.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Class<'a> {
     dom: &'a VDom<'a>,
     class_num: u32,
@@ -213,6 +228,11 @@ pub struct Class<'a> {
 }
 
 impl Class<'_> {
+    /// Return a model of the class with all fields evaluated.
+    pub fn model(&self) -> Result<ClassModel, ParseError> {
+        self.try_into()
+    }
+
     /// Get if the class is open or closed.
     pub fn is_open(&self) -> Result<bool, ParseError> {
         let seats = get_text_from_id_without_sub_nodes(
@@ -450,6 +470,7 @@ impl Class<'_> {
 
 /// Type of class.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum ClassType {
     Recitation,
     Lab,
@@ -488,6 +509,7 @@ impl Display for ClassType {
 
 /// Day of week.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub enum DayOfWeek {
     Sunday,
     Monday,
