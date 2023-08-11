@@ -59,7 +59,7 @@ impl Course {
     }
 
     /// Internal id of the course.
-    pub(crate) fn id(&self) -> &str {
+    pub fn id(&self) -> &str {
         match self {
             Course::Cse115 => "004544",
             Course::Raw(id) => id,
@@ -84,7 +84,7 @@ impl FromStr for Course {
 
 impl Semester {
     /// Internal id of the semester.
-    pub(crate) fn id(&self) -> &str {
+    pub fn id(&self) -> &str {
         match self {
             Semester::Spring2023 => "2231",
             Semester::Summer2023 => "",
@@ -114,7 +114,7 @@ impl FromStr for Semester {
 
 impl Career {
     /// Internal id of the career.
-    pub(crate) fn id(&self) -> &str {
+    pub fn id(&self) -> &str {
         match self {
             Career::Undergraduate => "UGRD",
             Career::Graduate => "GRAD",
