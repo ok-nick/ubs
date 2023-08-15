@@ -9,7 +9,7 @@ use crate::parser::{Class, ClassGroup, ClassSchedule, ClassType, DayOfWeek, Pars
 // TODO: document models
 
 /// Model of a [`ClassSchedule`](ClassSchedule) with all fields evaluated.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct ClassScheduleModel {
     // TODO: add semester?
@@ -17,7 +17,7 @@ pub struct ClassScheduleModel {
 }
 
 /// Model of a [`ClassGroup`](ClassGroup) with all fields evaluated.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct ClassGroupModel {
     pub session: Option<u32>,
@@ -27,7 +27,7 @@ pub struct ClassGroupModel {
 }
 
 /// Model of a [`Class`](Class) with all fields evaluated.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct ClassModel {
     pub is_open: Option<bool>,
