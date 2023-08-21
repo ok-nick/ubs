@@ -87,8 +87,8 @@ impl Semester {
     pub fn id(&self) -> &str {
         match self {
             Semester::Spring2023 => "2231",
-            Semester::Summer2023 => "",
-            Semester::Fall2023 => "",
+            Semester::Summer2023 => "2236",
+            Semester::Fall2023 => "2239",
             Semester::Winter2023 => "",
             Semester::Raw(id) => id,
         }
