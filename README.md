@@ -45,6 +45,10 @@ async fn main() -> Result<(), ubs_lib::Error> {
 }
 ```
 
+## Implementations
+### [ubs-bot](https://github.com/ok-nick/ubs-bot/)
+A Discord bot for querying and listening to changes in class schedules. Supports caching!
+
 ## FAQ
 ### How does it work?
 The process involves sending a precisely tailored sequence of network requests directed towards the [target URL](https://www.pub.hub.buffalo.edu/). Upon receiving the requests, the resulting HTML is cached until the user requests specific information, at which point it is parsed to specification and the inner values are extracted using Regex.
@@ -54,6 +58,9 @@ Yes. While direct access to the core library may not be possible from other lang
 
 ### How stable is this library?
 Sort of stable. While using this library, it's important to note that there is a possibility that the underlying API may change in the future. Therefore, it may not be advisable to depend on this library for critical code. However, the library does have a comprehensive continuous integration system that runs daily, catching potential issues early on. In the event that the API does change and `ubs` ceases to function properly, users are encouraged to report the issue so that it can be resolved.
+
+### What do you mean by real-time, it's so slow?
+Existing methods of fetching University at Buffalo class schedules operate **nightly** (if they even still exist). In contrast, `ubs` operates in real-time, fetching the latest and most up to date information.
 
 ### Does this library operate on private information?
 No, this library operates exclusively on public information that is readily accessible to anyone. There are no proprietary or confidential data sources involved.
