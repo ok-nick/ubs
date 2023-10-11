@@ -20,9 +20,11 @@ const USER_AGENT: &str = "ubs";
 
 // TODO: remove excess queries from url
 const FAKE1_URL: &str = "https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_MAIN_FL.GBL?Page=SSR_CLSRCH_MAIN_FL&pslnkid=CS_S201605302223124733554248&ICAJAXTrf=true&ICAJAX=1&ICMDTarget=start&ICPanelControlStyle=%20pst_side1-fixed%20pst_panel-mode%20";
-const FAKE2_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_ES_FL.GBL?Page=SSR_CLSRCH_ES_FL&SEARCH_GROUP=SSR_CLASS_SEARCH_LFF&SEARCH_TEXT=gly%20105&ES_INST=UBFLO&ES_STRM=2231&ES_ADV=N&INVOKE_SEARCHAGAIN=PTSF_GBLSRCH_FLUID";
+macro_rules! FAKE2_URL {
+    () => { "https://www.pub.hub.buffalo.edu/psc/csprdpub_1/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CLSRCH_ES_FL.GBL?SEARCH_GROUP=SSR_CLASS_SEARCH_LFF&SEARCH_TEXT=placeholder&ES_INST=UBFLO&ES_STRM={}" };
+}
 macro_rules! PAGE1_URL {
-    () => { "https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CRSE_INFO_FL.GBL?Page=SSR_CRSE_INFO_FL&Page=SSR_CS_WRAP_FL&CRSE_OFFER_NBR=1&INSTITUTION=UBFLO&CRSE_ID={}&STRM={}&ACAD_CAREER={}" };
+    () => { "https://www.pub.hub.buffalo.edu/psc/csprdpub_3/EMPLOYEE/SA/c/SSR_STUDENT_FL.SSR_CRSE_INFO_FL.GBL?CRSE_OFFER_NBR=1&INSTITUTION=UBFLO&CRSE_ID={}&STRM={}&ACAD_CAREER={}" };
 }
 
 const TOKEN1_URL: &str ="https://www.pub.hub.buffalo.edu/psc/csprdpub/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?tab=DEFAULT";
@@ -65,6 +67,33 @@ impl<T> Session<T>
 where
     T: Connect + Clone + Send + Sync + 'static,
 {
+    /// Initializes the session.
+    ///
+    /// This only needs to be called once before the schedule is iterated.
+    // TODO: I believe this only needs to be called once. When the token expires, a new token is needed.
+    // I also believe the semester can be any semester, as long as it is valid. So in the future it can be
+    // replaced if the latest semesters are auto found
+    pub async fn initialize(&self, semester: &Semester) -> Result<(), SessionError> {
+        self.client
+            .request(
+                Request::builder()
+                    .uri(FAKE1_URL)
+                    .header(header::COOKIE, self.token.as_str())
+                    .body(Body::empty())?,
+            )
+            .await?;
+        self.client
+            .request(
+                Request::builder()
+                    .uri(format!(FAKE2_URL!(), semester.id()))
+                    .header(header::COOKIE, self.token.as_str())
+                    .body(Body::empty())?,
+            )
+            .await?;
+
+        Ok(())
+    }
+
     /// Iterate over pages of schedules with the specified [`Query`](Query).
     pub fn schedule_iter(&self, query: Query) -> impl TryStream<Ok = Bytes, Error = SessionError> {
         let client = self.client.clone();
@@ -101,28 +130,10 @@ where
         query: Query,
         page_num: u32,
     ) -> Result<ResponseFuture, SessionError> {
-        #[allow(clippy::never_loop)] // TODO: tem
+        #[allow(clippy::never_loop)] // TODO: temp
         loop {
             match page_num {
                 1 => {
-                    // TODO: I can separate the "get_page" functionality from the fake url
-                    // TODO: fix boilerplate
-                    client
-                        .request(
-                            Request::builder()
-                                .uri(FAKE1_URL)
-                                .header(header::COOKIE, token.as_str())
-                                .body(Body::empty())?,
-                        )
-                        .await?;
-                    client
-                        .request(
-                            Request::builder()
-                                .uri(FAKE2_URL)
-                                .header(header::COOKIE, token.as_str())
-                                .body(Body::empty())?,
-                        )
-                        .await?;
                     let page = client.request(
                         Request::builder()
                             .uri(format!(

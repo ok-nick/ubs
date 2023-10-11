@@ -76,10 +76,14 @@ pub async fn schedule_iter_with_career<'a>(
             .build(),
     );
     let token = Token::new(&client).await?;
-    Ok(Session::new(client, token)
+
+    let session = Session::new(client, token);
+    session.initialize(&semester).await?;
+
+    Ok(session
         .schedule_iter(Query::new(course, semester, career))
         // TODO: set page accordingly. Ideally, the schedule should be able to figure it out itself
-        .map_ok(|bytes| ClassSchedule::new(bytes.into(), 1)))
+        .map_ok(|bytes| ClassSchedule::new(bytes.into())))
 }
 
 /// Error when iterating schedules.

@@ -21,6 +21,16 @@ const CLASSES_PER_GROUP: u32 = 3;
 // in consts and use the `format!` macro. Defining declarative macros via `macro_rules!` is an
 // alternative to get around this limitation.
 
+// First is the total amount of classes for the current page (max 50)
+const NUM_INFO_FORMAT_1: &str = r"(\d+) option";
+// First is the total amount of class groups viewed (max second parameter, increments by 50 per page)
+// Second is the total amount of class groups available to view
+const NUM_INFO_FORMAT_2: &str = r"1 - (\d+) of (\d+) options";
+macro_rules! NUM_INFO_TAG {
+    () => {
+        "SSR_CLSRCH_F_WK_SSR_MSG_TEXT"
+    };
+}
 // First is the class group index ((page * 50) - 1)
 const SESSION_FORMAT: &str = r"^University (\d\d?) Week Session$";
 macro_rules! SESSION_TAG {
@@ -87,16 +97,15 @@ macro_rules! SEATS_TAG {
 #[derive(Debug)]
 pub struct ClassSchedule {
     dom: VDomGuard,
-    page: u32,
 }
 
 impl ClassSchedule {
-    /// Construct a new [`ClassSchedule`](ClassSchedule) with the specified bytes at the specified page.
-    pub fn new(bytes: Vec<u8>, page: u32) -> Result<Self, ParseError> {
+    /// Construct a new [`ClassSchedule`](ClassSchedule) with the specified bytes.
+    pub fn new(bytes: Vec<u8>) -> Result<Self, ParseError> {
         // TODO: consider enabling tracking for perf
         let dom = unsafe { tl::parse_owned(String::from_utf8(bytes)?, ParserOptions::default())? };
 
-        Ok(Self { dom, page })
+        Ok(Self { dom })
     }
 
     /// Return a model of the class schedule with all fields evaluated.
@@ -112,19 +121,51 @@ impl ClassSchedule {
         }
     }
 
+    // can also return the total groups viewed after this page, but that can be derived
+    pub fn total_groups(&self) -> Result<u32, ParseError> {
+        let info = get_text_from_id_without_sub_nodes(self.dom.get_ref(), NUM_INFO_TAG!())?;
+        match Regex::new(NUM_INFO_FORMAT_1).unwrap().captures(info) {
+            Some(captures) => {
+                Ok(
+                    captures
+                        .get(1)
+                        .ok_or(ParseError::UnknownElementFormat)?
+                        .as_str()
+                        .parse()
+                        .unwrap(), // unwrap beacuse it will always be an integer
+                )
+            }
+            None => match Regex::new(NUM_INFO_FORMAT_2).unwrap().captures(info) {
+                Some(captures) => Ok(captures
+                    .get(2)
+                    .ok_or(ParseError::UnknownElementFormat)?
+                    .as_str()
+                    .parse()
+                    .unwrap()),
+                None => Err(ParseError::UnknownElementFormat),
+            },
+        }
+    }
+
     /// Iterator over groups of classes.
     ///
     /// In the catalog, classes are grouped in sets of 3 (usually)
     /// which can only be selected together.
-    pub fn group_iter(&self) -> impl Iterator<Item = ClassGroup<'_>> + '_ {
-        // Every page contains the bytes of the previous pages
-        let first_class_index = self.page.saturating_sub(1) * CLASSES_PER_PAGE;
-        let last_class_index = (self.page * CLASSES_PER_PAGE).saturating_sub(1);
+    pub fn group_iter(&self) -> Result<impl Iterator<Item = ClassGroup<'_>> + '_, ParseError> {
+        let total_groups = self.total_groups()?;
+        // TODO: https://doc.rust-lang.org/std/primitive.u32.html#method.div_ceil
+        let page = (total_groups as f32 / CLASSES_PER_PAGE as f32).ceil() as u32;
 
-        (first_class_index..last_class_index).map(|group_num| ClassGroup {
-            dom: self.dom.get_ref(),
-            group_num,
-        })
+        // Every page contains the bytes of the previous pages
+        let first_class_index = page.saturating_sub(1) * CLASSES_PER_PAGE;
+        let last_class_index = ((page * CLASSES_PER_PAGE) % total_groups).saturating_sub(1);
+
+        Ok(
+            (first_class_index..last_class_index).map(|group_num| ClassGroup {
+                dom: self.dom.get_ref(),
+                group_num,
+            }),
+        )
     }
 
     /// Get the semester for the schedule.
@@ -312,7 +353,7 @@ impl Class<'_> {
             .transpose()
     }
 
-    // Sometimes it returns `Arr Arr`
+    // TODO: Sometimes it returns `Arr Arr`
     /// Get the room and room number of this class.
     ///
     /// For instance, if the class says `Nsc 215`, this function will
@@ -401,7 +442,8 @@ impl Class<'_> {
         // TODO: but it could also mean the format is unknown. Return error with source attached.
         .map_or_else(
             |err| match err {
-                ParseError::MissingTag => Ok(None),
+                // TODO: ^ error for time conflict
+                // ParseError::MissingTag => Ok(None),
                 _ => Err(err),
             },
             |node| {
@@ -437,6 +479,7 @@ impl Class<'_> {
 
     /// Get various bits of information for this class seats in the form,
     /// `(days_of_weeek, start_time, end_time)`.
+    // TODO: return enum instead of option
     fn seats(&self) -> Result<Option<(u32, u32)>, ParseError> {
         let seats = get_text_from_id_without_sub_nodes(
             self.dom,
@@ -458,7 +501,7 @@ impl Class<'_> {
                         .parse()
                         .map_err(|_| ParseError::UnknownElementFormat)?, // Open seats
                     re.get(2)
-                        .ok_or(ParseError::UnknownHtmlFormat)?
+                        .ok_or(ParseError::UnknownElementFormat)?
                         .as_str()
                         .parse()
                         .map_err(|_| ParseError::UnknownElementFormat)?, // Total seats
@@ -570,7 +613,7 @@ fn get_text_from_id_without_sub_nodes<'a>(dom: &'a VDom, id: &str) -> Result<&'a
 fn get_node_from_id<'a>(dom: &'a VDom, id: &str) -> Result<&'a Node<'a>, ParseError> {
     Ok(dom
         .get_element_by_id(id)
-        .ok_or(ParseError::MissingTag)?
+        .ok_or_else(|| ParseError::MissingTag { tag: id.to_owned() })?
         .get(dom.parser())
         // We know the element exists in the DOM because that's where we got it from
         .unwrap())
@@ -600,6 +643,6 @@ pub enum ParseError {
     #[error("format of element could not be parsed because it is unknown")]
     UnknownElementFormat,
     /// HTML tag for class does not exist
-    #[error("could not find tag for class in HTML")]
-    MissingTag,
+    #[error("could not find tag, `{tag}`, for class in HTML")]
+    MissingTag { tag: String },
 }

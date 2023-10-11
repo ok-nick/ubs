@@ -48,7 +48,7 @@ impl TryFrom<&ClassSchedule> for ClassScheduleModel {
 
     fn try_from(schedule: &ClassSchedule) -> Result<Self, Self::Error> {
         let mut groups = Vec::new();
-        for group in schedule.group_iter() {
+        for group in schedule.group_iter()? {
             groups.push(ClassGroupModel::try_from(&group)?);
         }
 

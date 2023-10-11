@@ -3,11 +3,11 @@ use ubs_lib::{Course, Semester};
 
 #[tokio::test]
 async fn schedule_iter() -> Result<(), ubs_lib::ScheduleError> {
-    let mut schedule_iter = ubs_lib::schedule_iter(Course::Cse115Llr, Semester::Spring2024).await?;
+    let mut schedule_iter = ubs_lib::schedule_iter(Course::Apy106Lec, Semester::Spring2024).await?;
 
     #[allow(clippy::never_loop)] // TODO: temp
     while let Some(schedule) = schedule_iter.try_next().await? {
-        for group in schedule?.group_iter() {
+        for group in schedule?.group_iter()? {
             println!("Session: {}", group.session()?);
             println!("Start Date: {}", group.start_date()?);
             println!("End Date: {}", group.end_date()?);
