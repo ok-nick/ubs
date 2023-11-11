@@ -7,12 +7,12 @@
 //!
 //! # async fn run() -> Result<(), ubs_lib::ScheduleError> {
 //! let mut schedule_iter = ubs_lib::schedule_iter(
-//!     Course::Cse115,
-//!     Semester::Spring2023,
+//!     Course::Cse115Llr,
+//!     Semester::Spring2024,
 //! ).await?;
 //!
 //! while let Some(schedule) = schedule_iter.try_next().await? {
-//!     for group in schedule?.group_iter() {
+//!     for group in schedule?.group_iter()? {
 //!         for class in group.class_iter() {
 //!             // do stuff
 //!         }
