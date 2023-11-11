@@ -21,6 +21,11 @@ const CLASSES_PER_GROUP: u32 = 3;
 // in consts and use the `format!` macro. Defining declarative macros via `macro_rules!` is an
 // alternative to get around this limitation.
 
+macro_rules! SEMESTER_TAG {
+    () => {
+        "TERM_VAL_TBL_DESCR"
+    };
+}
 // First is the total amount of classes for the current page (max 50)
 const NUM_INFO_FORMAT_1: &str = r"(\d+) option";
 // First is the total amount of class groups viewed (max second parameter, increments by 50 per page)
@@ -121,30 +126,19 @@ impl ClassSchedule {
         }
     }
 
-    // can also return the total groups viewed after this page, but that can be derived
-    pub fn total_groups(&self) -> Result<u32, ParseError> {
-        let info = get_text_from_id_without_sub_nodes(self.dom.get_ref(), NUM_INFO_TAG!())?;
-        match Regex::new(NUM_INFO_FORMAT_1).unwrap().captures(info) {
-            Some(captures) => {
-                Ok(
-                    captures
-                        .get(1)
-                        .ok_or(ParseError::UnknownElementFormat)?
-                        .as_str()
-                        .parse()
-                        .unwrap(), // unwrap beacuse it will always be an integer
-                )
-            }
-            None => match Regex::new(NUM_INFO_FORMAT_2).unwrap().captures(info) {
-                Some(captures) => Ok(captures
-                    .get(2)
-                    .ok_or(ParseError::UnknownElementFormat)?
-                    .as_str()
-                    .parse()
-                    .unwrap()),
-                None => Err(ParseError::UnknownElementFormat),
-            },
-        }
+    /// Get the semester for the schedule.
+    pub fn semester(&self) -> Result<Semester, ParseError> {
+        get_text_from_id_without_sub_nodes(self.dom.get_ref(), SEMESTER_TAG!())?
+            .parse::<Semester>()
+            .map_err(|err| err.into())
+    }
+
+    pub fn total_pages(&self) -> Result<u32, ParseError> {
+        Ok(self.calc_page(self.total()?.1))
+    }
+
+    pub fn page_num(&self) -> Result<u32, ParseError> {
+        Ok(self.calc_page(self.total()?.0))
     }
 
     /// Iterator over groups of classes.
@@ -152,13 +146,11 @@ impl ClassSchedule {
     /// In the catalog, classes are grouped in sets of 3 (usually)
     /// which can only be selected together.
     pub fn group_iter(&self) -> Result<impl Iterator<Item = ClassGroup<'_>> + '_, ParseError> {
-        let total_groups = self.total_groups()?;
-        // TODO: https://doc.rust-lang.org/std/primitive.u32.html#method.div_ceil
-        let page = (total_groups as f32 / CLASSES_PER_PAGE as f32).ceil() as u32;
+        let total = self.total()?;
 
         // Every page contains the bytes of the previous pages
-        let first_class_index = page.saturating_sub(1) * CLASSES_PER_PAGE;
-        let last_class_index = ((page * CLASSES_PER_PAGE) % total_groups).saturating_sub(1);
+        let first_class_index = total.1 - (total.1 % 50);
+        let last_class_index = total.0;
 
         Ok(
             (first_class_index..last_class_index).map(|group_num| ClassGroup {
@@ -168,11 +160,44 @@ impl ClassSchedule {
         )
     }
 
-    /// Get the semester for the schedule.
-    pub fn semester(&self) -> Result<Semester, ParseError> {
-        get_text_from_id_without_sub_nodes(self.dom.get_ref(), "TERM_VAL_TBL_DESCR")?
-            .parse::<Semester>()
-            .map_err(|err| err.into())
+    #[inline]
+    fn calc_page(&self, groups: u32) -> u32 {
+        // TODO: https://doc.rust-lang.org/std/primitive.u32.html#method.div_ceil
+        (groups as f32 / CLASSES_PER_PAGE as f32).ceil() as u32
+    }
+
+    // (groups viewed, total groups)
+    fn total(&self) -> Result<(u32, u32), ParseError> {
+        let info = get_text_from_id_without_sub_nodes(self.dom.get_ref(), NUM_INFO_TAG!())?;
+        match Regex::new(NUM_INFO_FORMAT_1).unwrap().captures(info) {
+            Some(captures) => {
+                let groups = captures
+                    .get(1)
+                    .ok_or(ParseError::UnknownElementFormat)?
+                    .as_str()
+                    .parse()
+                    .unwrap(); // unwrap beacuse it will always be an integer
+
+                Ok((groups, groups))
+            }
+            None => match Regex::new(NUM_INFO_FORMAT_2).unwrap().captures(info) {
+                Some(captures) => Ok((
+                    captures
+                        .get(1)
+                        .ok_or(ParseError::UnknownElementFormat)?
+                        .as_str()
+                        .parse()
+                        .unwrap(),
+                    captures
+                        .get(2)
+                        .ok_or(ParseError::UnknownElementFormat)?
+                        .as_str()
+                        .parse()
+                        .unwrap(),
+                )),
+                None => Err(ParseError::UnknownElementFormat),
+            },
+        }
     }
 }
 
@@ -202,6 +227,7 @@ impl<'a> ClassGroup<'a> {
 
     /// Iterator over classes in group.
     pub fn class_iter(&self) -> impl Iterator<Item = Class<'a>> + '_ {
+        // TODO: not every class will be in a group of 3
         (0..CLASSES_PER_GROUP).map(|class_num| Class {
             dom: self.dom,
             class_num,
@@ -440,41 +466,34 @@ impl Class<'_> {
         // If the tag is missing it could mean `Time Conflict` is being displayed. In that
         // case, skip it and label the datetime as non-existent.
         // TODO: but it could also mean the format is unknown. Return error with source attached.
-        .map_or_else(
-            |err| match err {
-                // TODO: ^ error for time conflict
-                // ParseError::MissingTag => Ok(None),
-                _ => Err(err),
-            },
-            |node| {
-                match node.inner_text(self.dom.parser()) {
-                    Cow::Borrowed(_) => Err(ParseError::UnknownHtmlFormat),
-                    Cow::Owned(value) => {
-                        let re = Regex::new(DATETIME_FORMAT)
-                            .unwrap()
-                            .captures(&value)
-                            .ok_or(ParseError::UnknownElementFormat)?;
+        .map(|node| {
+            match node.inner_text(self.dom.parser()) {
+                Cow::Borrowed(_) => Err(ParseError::UnknownHtmlFormat),
+                Cow::Owned(value) => {
+                    let re = Regex::new(DATETIME_FORMAT)
+                        .unwrap()
+                        .captures(&value)
+                        .ok_or(ParseError::UnknownElementFormat)?;
 
-                        Ok(Some((
-                            re.get(1)
-                                .ok_or(ParseError::UnknownElementFormat)?
-                                .as_str()
-                                .split_whitespace()
-                                .map(|string| string.to_owned())
-                                .collect(), // Days of week (e.g. Wednesday)
-                            re.get(2)
-                                .ok_or(ParseError::UnknownElementFormat)?
-                                .as_str()
-                                .to_owned(), // Start time (e.g. 3:00PM)
-                            re.get(3)
-                                .ok_or(ParseError::UnknownElementFormat)?
-                                .as_str()
-                                .to_owned(), // End time (e.g. 4:00PM)
-                        )))
-                    }
+                    Ok(Some((
+                        re.get(1)
+                            .ok_or(ParseError::UnknownElementFormat)?
+                            .as_str()
+                            .split_whitespace()
+                            .map(|string| string.to_owned())
+                            .collect(), // Days of week (e.g. Wednesday)
+                        re.get(2)
+                            .ok_or(ParseError::UnknownElementFormat)?
+                            .as_str()
+                            .to_owned(), // Start time (e.g. 3:00PM)
+                        re.get(3)
+                            .ok_or(ParseError::UnknownElementFormat)?
+                            .as_str()
+                            .to_owned(), // End time (e.g. 4:00PM)
+                    )))
                 }
-            },
-        )
+            }
+        })?
     }
 
     /// Get various bits of information for this class seats in the form,

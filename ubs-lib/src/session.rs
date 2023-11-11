@@ -3,11 +3,11 @@
 use std::sync::Arc;
 
 use cookie::Cookie;
-use futures::{stream, StreamExt, TryFutureExt, TryStream, TryStreamExt};
+use futures::{stream, TryFutureExt, TryStream, TryStreamExt};
 use hyper::{
     body::{self, Bytes},
-    client::{connect::Connect, ResponseFuture},
-    header, Body, Client, HeaderMap, Request,
+    client::connect::Connect,
+    header, Body, Client, HeaderMap, Request, Response,
 };
 use thiserror::Error;
 
@@ -50,7 +50,16 @@ impl Query {
     }
 }
 
+#[derive(Debug)]
+struct ScheduleIterState<T> {
+    page_num: u32,
+    query: Query,
+    client: Client<T, Body>,
+    token: Token,
+}
+
 /// Manages the session to the host server.
+#[derive(Debug)]
 pub struct Session<T> {
     client: Client<T, Body>,
     token: Token,
@@ -96,61 +105,62 @@ where
 
     /// Iterate over pages of schedules with the specified [`Query`](Query).
     pub fn schedule_iter(&self, query: Query) -> impl TryStream<Ok = Bytes, Error = SessionError> {
-        let client = self.client.clone();
-        let token = self.token.clone();
-        stream::iter(1..)
-            .then(move |page_num| {
-                // Cloning `client` and `token` above is to avoid having the closure live as long
-                // as `self`. Cloning again is necessary because new ownership is needed for each
-                // step in the iteration.
-                let client = client.clone();
-                let token = token.clone();
-                let query = query.clone(); // TODO: take query as an Arc?
-
-                // `async move` doesn't implement `Unpin`, thus it is necessary to manually pin it.
-                // TODO: simplify this
+        stream::unfold(
+            ScheduleIterState {
+                page_num: 1,
+                query,
+                // both Arc, so it's cheap
+                client: self.client.clone(),
+                token: self.token.clone(),
+            },
+            |mut state| {
                 Box::pin(async move {
-                    Ok(Self::get_page(client, token, query, page_num)
-                        .await?
-                        .await?)
+                    Self::get_page(&state.client, &state.token, &state.query, state.page_num)
+                        .await
+                        .transpose()
+                        .map(|response| {
+                            state.page_num += 1;
+                            (response, state)
+                        })
                 })
-            })
-            .and_then(|response| Box::pin(body::to_bytes(response.into_body()).err_into()))
+            },
+        )
+        .and_then(|response| Box::pin(body::to_bytes(response.into_body()).err_into()))
     }
-
-    // async fn load_fakes() {}
 
     // TODO: you MUST go page-by-page, otherwise it won't return the correct result?
     /// Get specific page for query.
     ///
     /// Note that this must be called incrementally, page-by-page.
     async fn get_page(
-        client: Client<T, Body>,
-        token: Token,
-        query: Query,
+        client: &Client<T, Body>,
+        token: &Token,
+        query: &Query,
         page_num: u32,
-    ) -> Result<ResponseFuture, SessionError> {
+    ) -> Result<Option<Response<Body>>, SessionError> {
         #[allow(clippy::never_loop)] // TODO: temp
         loop {
             match page_num {
                 1 => {
-                    let page = client.request(
-                        Request::builder()
-                            .uri(format!(
-                                PAGE1_URL!(),
-                                query.course.id(),
-                                query.semester.id(),
-                                query.career.id()
-                            ))
-                            .header(header::USER_AGENT, USER_AGENT)
-                            .header(header::COOKIE, token.as_str())
-                            .header(header::COOKIE, "HttpOnly")
-                            .header(header::COOKIE, "Path=/")
-                            .body(Body::empty())?,
-                    );
+                    let page = client
+                        .request(
+                            Request::builder()
+                                .uri(format!(
+                                    PAGE1_URL!(),
+                                    query.course.id(),
+                                    query.semester.id(),
+                                    query.career.id()
+                                ))
+                                .header(header::USER_AGENT, USER_AGENT)
+                                .header(header::COOKIE, token.as_str())
+                                .header(header::COOKIE, "HttpOnly")
+                                .header(header::COOKIE, "Path=/")
+                                .body(Body::empty())?,
+                        )
+                        .await?;
                     // TODO: do I need to send the fake result here (with ICState=2) for the next
                     // pages to load?
-                    return Ok(page);
+                    return Ok(Some(page));
                 }
                 _ => {
                     // The second page has an `ICState` of 3.
@@ -164,7 +174,7 @@ where
                     //     seem to enable the next page to return the correct result. I'm either
                     //     missing some minute detail in the request or I need to send more phony
                     //     requests prior.
-                    return Err(SessionError::PagesNotImplemented);
+                    return Ok(None);
                 }
             }
         }
@@ -256,7 +266,4 @@ pub enum SessionError {
     /// Could not find or parse the token cookie.
     #[error("could not find or parse the token cookie")]
     TokenCookieNotFound,
-    /// More than one page has not yet been implemented.
-    #[error("more than one page has not been implemented")]
-    PagesNotImplemented,
 }

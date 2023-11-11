@@ -6,10 +6,12 @@ on:
   push:
     paths:
       - "**.rs"
+      - "**/Cargo.toml"
       - ".github/workflows/test.yml"
   pull_request:
     paths:
       - "**.rs"
+      - "**/Cargo.toml"
       - ".github/workflows/test.yml"
 
 jobs:

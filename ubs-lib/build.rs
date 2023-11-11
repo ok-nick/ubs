@@ -9,7 +9,7 @@ const COURSES_PATH: &str = "data/courses.csv";
 // in case more information is added to each course (ex: is it a pathway?)
 #[derive(Debug, Clone)]
 struct Course {
-    id: String,
+    // id: String,
     career: String,
     name: String,
 }
@@ -55,13 +55,14 @@ fn generate_tokens(courses: HashMap<String, Course>) -> io::Result<TokenStream> 
         /// If a course is missing, manually specify its id with [`Course::Raw`](Course::Raw) and
         /// consider sending a PR adding that mapping.
         #[derive(Debug, Clone)]
+        #[non_exhaustive]
         pub enum Course {
             Raw(String),
             #(#names1),*
         }
 
         impl Course {
-            const ALL: [Course; #num_courses] = [#(Course::#names4),*];
+            pub const ALL: [Course; #num_courses] = [#(Course::#names4),*];
 
             /// Infer the career from the course.
             ///
@@ -106,6 +107,7 @@ fn generate_tokens(courses: HashMap<String, Course>) -> io::Result<TokenStream> 
         /// consider sending a PR adding that mapping.
         // TODO: auto-gen semesters?
         #[derive(Debug, Clone)]
+        #[non_exhaustive]
         pub enum Semester {
             Spring2023,
             Summer2023,
@@ -230,7 +232,7 @@ fn main() {
         courses.insert(
             record[0].to_owned(),
             Course {
-                id: record[0].to_owned(),
+                // id: record[0].to_owned(),
                 career: record[1].to_owned(),
                 name: record[2].to_owned(),
             },

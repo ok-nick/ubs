@@ -5,7 +5,6 @@ use ubs_lib::{Course, Semester};
 async fn schedule_iter() -> Result<(), ubs_lib::ScheduleError> {
     let mut schedule_iter = ubs_lib::schedule_iter(Course::Apy106Lec, Semester::Spring2024).await?;
 
-    #[allow(clippy::never_loop)] // TODO: temp
     while let Some(schedule) = schedule_iter.try_next().await? {
         for group in schedule?.group_iter()? {
             println!("Session: {}", group.session()?);
@@ -27,8 +26,6 @@ async fn schedule_iter() -> Result<(), ubs_lib::ScheduleError> {
             }
             println!();
         }
-
-        break; // TODO: for now since subsequent pages aren't implemented
     }
 
     Ok(())

@@ -54,7 +54,7 @@ pub async fn schedule_iter<'a>(
     schedule_iter_with_career(course, semester, career).await
 }
 
-/// iterator over each page of the specified query with an explicit career.
+/// Iterator over each page of the specified query with an explicit career.
 ///
 /// Note that in some cases the career cannot be inferred from the course, thus it
 /// is necessary to manually specify the career. Considering sending a PR with the
@@ -82,7 +82,6 @@ pub async fn schedule_iter_with_career<'a>(
 
     Ok(session
         .schedule_iter(Query::new(course, semester, career))
-        // TODO: set page accordingly. Ideally, the schedule should be able to figure it out itself
         .map_ok(|bytes| ClassSchedule::new(bytes.into())))
 }
 

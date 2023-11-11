@@ -4,10 +4,12 @@ on:
   push:
     paths:
       - "**.rs"
+      - "**/Cargo.toml"
       - ".github/workflows/check.yml"
   pull_request:
     paths:
       - "**.rs"
+      - "**/Cargo.toml"
       - ".github/workflows/check.yml"
 
 jobs:
