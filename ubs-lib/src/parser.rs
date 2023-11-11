@@ -27,10 +27,10 @@ macro_rules! SEMESTER_TAG {
     };
 }
 // First is the total amount of classes for the current page (max 50)
-const NUM_INFO_FORMAT_1: &str = r"(\d+) option";
+const NUM_INFO_FORMAT_1: &str = r"^(\d+) option$";
 // First is the total amount of class groups viewed (max second parameter, increments by 50 per page)
 // Second is the total amount of class groups available to view
-const NUM_INFO_FORMAT_2: &str = r"1 - (\d+) of (\d+) options";
+const NUM_INFO_FORMAT_2: &str = r"^1 - (\d+) of (\d+) options$";
 macro_rules! NUM_INFO_TAG {
     () => {
         "SSR_CLSRCH_F_WK_SSR_MSG_TEXT"
